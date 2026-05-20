@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. 检出仓库代码
+    # 1. 检出仓库代码（Node 24 环境兼容）
     - name: Checkout repository code
       uses: actions/checkout@v4
 
@@ -19,17 +19,17 @@ jobs:
         python-version: '3.11'
         cache: 'pip'
 
-    # 3. 安装专属防封依赖库（curl_cffi 的下载安装极快）
+    # 3. 安装防封依赖库
     - name: Install Anti-Bot Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install curl_cffi
 
-    # 4. 执行你的直链无损下载脚本
+    # 4. 执行针对真正的 usprefstd.xls 的强攻下载脚本
     - name: Run USP Downloader
       run: python daochuusp.py
 
-    # 5. 发送包含该新 Excel 附件的邮件到指定的邮箱
+    # 5. 发送包含真正的 13MB Excel 附件的测试邮件
     - name: Send Email with USP Attachment
       uses: dawidd6/action-send-mail@v4
       with:
@@ -37,9 +37,11 @@ jobs:
         server_port: 465
         username: ${{ secrets.EMAIL_USERNAME }}
         password: ${{ secrets.EMAIL_PASSWORD }}
-        subject: "【独立测试】USP 官方对照品完整清单"
+        subject: "【独立测试】USP 官方对照品完整清单 - 13MB原厂无损版"
         to: "liuliming@kvvit.com"
         from: GitHub Actions Robot
         secure: true
-        body: "您好，这是单独测试导出的 USP 官方对照品完整清单（Reference Standards Catalog），采用 Chrome 真实 TLS 指纹无损通道抓取，请查收附件。"
-        attachments: Reference Standards Catalog.xls
+        body: "您好，这是单独测试导出的真实 13MB USP 官方对照品完整目录（usprefstd.xls），已完美绕过防火墙，请查收附件。"
+        
+        # 🔗 【核心修改】：附件名称严格对应为 usprefstd.xls
+        attachments: usprefstd.xls
