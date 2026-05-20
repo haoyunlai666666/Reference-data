@@ -1,0 +1,44 @@
+name: Test USP Catalog Downloader Only
+
+on:
+  workflow_dispatch: # 核心：只允许你手动在网页点击触发，绝不自动打扰原有的定时任务
+
+jobs:
+  test-single-run:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. 检出仓库代码
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    # 2. 设置 Python 环境
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    # 3. 安装 requests 依赖（由于不牵扯 Playwright，这个独立测试运行极快）
+    - name: Install dependencies
+      run: pip install requests
+
+    # 4. 单独执行你的新 USP 脚本
+    - name: Run USP Downloader
+      run: python daochuusp.py
+
+    # 5. 单独发送带有这个新 Excel 的邮件
+    - name: Send Email with USP Attachment
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: ://sina.com
+        server_port: 465
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "【独立测试】USP 官方对照品完整清单"
+        to: "liuliming@kvvit.com"
+        from: GitHub Actions Robot
+        secure: true
+        body: "您好，这是单独测试导出的 USP 官方对照品完整清单（Reference Standards Catalog），请查看附件中的 Excel 文件。"
+        
+        # 📎 附件中只放这一个新生成的文件
+        attachments: Reference Standards Catalog.xlsx
