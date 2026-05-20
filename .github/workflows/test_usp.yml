@@ -1,30 +1,35 @@
 name: Test USP Catalog Downloader Only
 
 on:
-  workflow_dispatch: # 保持手动点击触发
+  workflow_dispatch: # 保持手动点击触发不变
 
 jobs:
   test-single-run:
     runs-on: ubuntu-latest
 
     steps:
+    # 1. 检出仓库代码（完美兼容 Node 24 基础环境）
     - name: Checkout repository code
       uses: actions/checkout@v4
 
+    # 2. 设置 Python 环境
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
 
+    # 3. 安装轻量依赖
     - name: Install dependencies
       run: pip install requests
 
+    # 4. 执行你的直链无损下载脚本
     - name: Run USP Downloader
       run: python daochuusp.py
 
+    # 5. 发送带有精准 .xls 后缀附件的测试邮件
     - name: Send Email with USP Attachment
-      uses: dawidd6/action-send-mail@v3
+      uses: dawidd6/action-send-mail@v4
       with:
         server_address: smtp.sina.com
         server_port: 465
@@ -34,7 +39,7 @@ jobs:
         to: "liuliming@kvvit.com"
         from: GitHub Actions Robot
         secure: true
-        body: "您好，这是单独测试导出的 USP 官方对照品完整清单，采用无损二进制通道抓取，已精确匹配原厂 .xls 格式，请查收附件。"
+        body: "您好，这是单独测试导出的 USP 官方对照品完整清单（Reference Standards Catalog），采用原厂无损二进制通道抓取，已精确匹配原厂 .xls 格式，请查收附件。"
         
-        # 🔗 【核心修改】：附件名称同步修改为原装的 .xls 后缀
+        # 🔗 【核心修改】：附件名称与代码同步，严格锁定为 .xls 后缀
         attachments: Reference Standards Catalog.xls
