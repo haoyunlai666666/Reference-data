@@ -19,17 +19,15 @@ jobs:
         python-version: '3.11'
         cache: 'pip'
 
-    # 3. 安装依赖（加入你的旧配置文件第35-36行的核心系统级浏览器驱动）
-    - name: Install Playwright and Browser Deps
-      run: |
-        pip install playwright
-        python -m playwright install chromium --with-deps
+    # 3. 仅仅安装轻量的 requests 依赖（抛弃 Playwright 浏览器，速度极快）
+    - name: Install dependencies
+      run: pip install requests
 
-    # 4. 单独执行你的新 USP 脚本
+    # 4. 单独执行你的直链下载脚本
     - name: Run USP Downloader
       run: python daochuusp.py
 
-    # 5. 单独发送带有这个新 Excel 的邮件
+    # 5. 发送包含该新 Excel 附件的邮件到指定的邮箱
     - name: Send Email with USP Attachment
       uses: dawidd6/action-send-mail@v3
       with:
@@ -41,5 +39,5 @@ jobs:
         to: "liuliming@kvvit.com"
         from: GitHub Actions Robot
         secure: true
-        body: "您好，这是通过真实浏览器环境导出的 USP 官方对照品完整清单，请查看附件中的 Excel 文件。"
+        body: "您好，这是单独测试导出的 USP 官方对照品完整清单（Reference Standards Catalog），请查看附件中的 Excel 文件。"
         attachments: Reference Standards Catalog.xlsx
