@@ -45,8 +45,10 @@ jobs:
       - name: Send Email with Excel Attachment
         uses: dawidd6/action-send-mail@v3
         with:
+        
           # 这里以 新浪 邮箱作为发信服务器为例，如果是163邮箱请改为 :smtp.163.com
-          server_address: :smtp.sina.com
+          
+          server_address: smtp.sina.com
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
@@ -55,7 +57,9 @@ jobs:
           from: GitHub Actions Robot
           secure: true
           body: "您好，这是由 GitHub Actions 自动运行 Python 脚本生成的每日 Excel 报表，请查收附件。"
+          
           # 附件路径：请替换为你自己的 Python 脚本生成的 Excel 文件名
+          
           attachments: |
             国家药品标准物质目录_全显在售.xlsx
             EDQM_Catalog_Output.xlsx
