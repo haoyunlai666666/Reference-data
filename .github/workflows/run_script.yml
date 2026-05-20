@@ -24,10 +24,11 @@ jobs:
         python-version: '3.11'
         cache: 'pip' # 开启缓存，提升每日运行速度
 
-    # 3. 安装依赖（保留你原本的 Playwright，并新增用于破防的 curl_cffi）
+    # 3. 安装依赖（保留你原本的 Playwright，并新增用于破防的 curl_cffi，完美融合：既安装你原本要求的全部库，又补上防封的 curl_cffi）
     - name: Install Dependencies and Playwright Chromium
       run: |
         python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install curl_cffi requests
         python -m playwright install chromium --with-deps
 
