@@ -48,7 +48,7 @@ jobs:
         username: ${{ secrets.EMAIL_USERNAME }}
         password: ${{ secrets.EMAIL_PASSWORD }}
         subject: "【自动任务】每日 对照品Excel 数据报表"
-        to: "liuliming@kvvit.com,jxlbpl@kvvit.com,luoxiuzhen@kvvit.com"
+        to: "liuliming@kvvit.com,jxlgp1@kvvit.com,luoxiuzhen@kvvit.com"
         from: GitHub Actions Robot
         secure: true
         body: "您好，这是由 GitHub Actions 自动运行 Python 脚本生成的每日对照品 Excel 报表，请查收附件。"
