@@ -41,8 +41,6 @@ jobs:
 
     # 5. 发送带 3 个 Excel 附件的邮件到指定的邮箱
     - name: Send Email with Excel Attachment
-      # 【核心保护】：发送大附件极易因新浪服务器不回执导致假死转圈，这里限制最长 5 分钟，超时也会安全断开退出
-      timeout-minutes: 5 
       uses: dawidd6/action-send-mail@v4 # 升级为 v4 版，消除旧 Node 警告
       with:
         server_address: smtp.sina.com
