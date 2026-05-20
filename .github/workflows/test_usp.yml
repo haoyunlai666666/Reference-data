@@ -1,7 +1,7 @@
 name: Test USP Catalog Downloader Only
 
 on:
-  workflow_dispatch: # 核心：只允许你手动在网页点击触发，绝不自动打扰原有的定时任务
+  workflow_dispatch: # 保持手动点击触发不变
 
 jobs:
   test-single-run:
@@ -17,10 +17,13 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        cache: 'pip'
 
-    # 3. 安装 requests 依赖（由于不牵扯 Playwright，这个独立测试运行极快）
-    - name: Install dependencies
-      run: pip install requests
+    # 3. 安装依赖（加入你的旧配置文件第35-36行的核心系统级浏览器驱动）
+    - name: Install Playwright and Browser Deps
+      run: |
+        pip install playwright
+        python -m playwright install chromium --with-deps
 
     # 4. 单独执行你的新 USP 脚本
     - name: Run USP Downloader
@@ -38,7 +41,5 @@ jobs:
         to: "liuliming@kvvit.com"
         from: GitHub Actions Robot
         secure: true
-        body: "您好，这是单独测试导出的 USP 官方对照品完整清单（Reference Standards Catalog），请查看附件中的 Excel 文件。"
-        
-        # 📎 附件中只放这一个新生成的文件
+        body: "您好，这是通过真实浏览器环境导出的 USP 官方对照品完整清单，请查看附件中的 Excel 文件。"
         attachments: Reference Standards Catalog.xlsx
