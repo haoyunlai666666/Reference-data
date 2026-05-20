@@ -2,11 +2,10 @@ name: Daily Python Script Execution
 
 on:
   push:
-    branches: [ "main" ] # 每次你提交代码时触发
-  workflow_dispatch:      # 允许你在网页上点击按钮手动触发（方便测试）
+    branches: [ "main" ] # 每次提交代码时触发
+  workflow_dispatch: # 允许你在网页上点击按钮手动触发测试
   schedule:
     # 每天固定的标准时间 (UTC) 00:00 运行（对应北京时间早上 08:00）
-    # 注：由于 GitHub Actions 调度机制，定时任务可能会延迟 5-30 分钟启动
     - cron: '0 0 * * *'
 
 jobs:
@@ -14,52 +13,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 检出仓库代码
-      - name: Checkout repository code
-        uses: actions/checkout@v4
+    # 1. 检出仓库代码（升级为最新 v4 版，完美消除旧版本 Node 警告）
+    - name: Checkout repository code
+      uses: actions/checkout@v4
 
-      # 2. 设置 Python 环境
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip' # 顺便帮你开启了依赖缓存，下次运行速度会更快
+    # 2. 设置 Python 环境（升级为最新 v5 版，完美消除旧版本 Node 警告）
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip' # 开启缓存，提升每日运行速度
 
-      # 3. 安装依赖库（如果没有 requirements.txt 可以删除这一步）
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    # 3. 安装依赖（保留你原本的 Playwright，并新增用于破防的 curl_cffi）
+    - name: Install Dependencies and Playwright Chromium
+      run: |
+        python -m pip install --upgrade pip
+        pip install curl_cffi requests
+        python -m playwright install chromium --with-deps
 
-      # 新增步骤：安装 Playwright 所需的 Chromium 浏览器及系统底层依赖
-      - name: Install Playwright Chromium
-        run: python -m playwright install chromium --with-deps
+    # 4. 执行所有的 Python 脚本（新旧脚本依次流水线执行）
+    - name: Run Python script
+      run: |
+        python duibi.py
+        python zhuaqu.py
+        python daochuusp.py # 【全新融入】：在最后一步安全拉取 13MB USP 对照品大表
 
-      # 4. 执行您的 Python 脚本
-      - name: Run Python script
-        run: |
-          python duibi.py   # 确保你的原有脚本文件名是 duibi.py
-          python zhuaqu.py  # 执行新增的 EDQM 抓取脚本
-
-      # 5. 发送带 Excel 附件的邮件到指定的邮箱
-      - name: Send Email with Excel Attachment
-        uses: dawidd6/action-send-mail@v3
-        with:
+    # 5. 发送带 3 个 Excel 附件的邮件到指定的邮箱
+    - name: Send Email with Excel Attachment
+      # 【核心保护】：发送大附件极易因新浪服务器不回执导致假死转圈，这里限制最长 5 分钟，超时也会安全断开退出
+      timeout-minutes: 5 
+      uses: dawidd6/action-send-mail@v4 # 升级为 v4 版，消除旧 Node 警告
+      with:
+        server_address: smtp.sina.com
+        server_port: 465
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "【自动任务】每日 对照品Excel 数据报表"
+        to: "liuliming@kvvit.com,jxlbpl@kvvit.com,luoxiuzhen@kvvit.com"
+        from: GitHub Actions Robot
+        secure: true
+        body: "您好，这是由 GitHub Actions 自动运行 Python 脚本生成的每日对照品 Excel 报表，请查收附件。"
         
-          # 这里以 新浪 邮箱作为发信服务器为例，如果是163邮箱请改为 :smtp.163.com
-          
-          server_address: smtp.sina.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "【自动任务】每日 Excel 数据报表"
-          to: "liuliming@kvvit.com,jxlgp1@kvvit.com,luoxiuzhen@kvvit.com"
-          from: GitHub Actions Robot
-          secure: true
-          body: "您好，这是由 GitHub Actions 自动运行 Python 脚本生成的每日 Excel 报表，请查收附件。"
-          
-          # 附件路径：请替换为你自己的 Python 脚本生成的 Excel 文件名
-          
-          attachments: |
-            国家药品标准物质目录_全显在售.xlsx
-            EDQM_Catalog_Output.xlsx
+        # 🔗 【完美融合】：将你原本的 2 个附件和新下载的 usprefstd.xls 合并在一起发送
+        attachments: |
+          国家药品标准物质目录_全量在售.xlsx
+          EDQM_Catalog_Output.xlsx
+          usprefstd.xls
