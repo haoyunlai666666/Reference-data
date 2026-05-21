@@ -13,48 +13,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. 检出仓库代码（升级为最新 v4 版，完美消除旧版本 Node 警告）
+    # 1. 检出仓库代码（完美同步拿到你后续上传的 现有全部对照品目录.xlsx）
     - name: Checkout repository code
       uses: actions/checkout@v4
 
-    # 2. 设置 Python 环境（升级为最新 v5 版，完美消除旧版本 Node 警告）
+    # 2. 设置 Python 环境
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip' # 开启缓存，提升每日运行速度
 
-    # 3. 安装依赖（保留你原本的 Playwright，并新增用于破防的 curl_cffi，完美融合：既安装你原本要求的全部库，又补上防封的 curl_cffi）
+   # 3. 安装依赖（融合你原本的爬虫库，并增加 pandas 及其 Excel 依赖库）
     - name: Install Dependencies and Playwright Chromium
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install curl_cffi requests
+        pip install curl_cffi requests pandas openpyxl xlrd
         python -m playwright install chromium --with-deps
 
-    # 4. 执行所有的 Python 脚本（新旧脚本依次流水线执行）
-    - name: Run Python script
+   # 4. 执行所有数据生成脚本，并在最后运行对账和比对脚本
+    - name: Run Python scripts and Check Data
       run: |
         python duibi.py
         python zhuaqu.py
-        python daochuusp.py # 【全新融入】：在最后一步安全拉取 13MB USP 对照品大表
+        python daochuusp.py
+        python check_data.py # 【全新引入】：读取本地文件与上述三个生成的文件做双列多库交叉比对
 
-    # 5. 发送带 3 个 Excel 附件的邮件到指定的邮箱
+    # 5. 发送带 3 个 Excel 附件的动态对账邮件到指定的邮箱
     - name: Send Email with Excel Attachment
-      uses: dawidd6/action-send-mail@v4 # 升级为 v4 版，消除旧 Node 警告
+      uses: dawidd6/action-send-mail@v4
       with:
         server_address: smtp.sina.com
         server_port: 465
         username: ${{ secrets.EMAIL_USERNAME }}
         password: ${{ secrets.EMAIL_PASSWORD }}
-        subject: "【自动任务】每日 对照品Excel 数据报表"
-        to: "liuliming@kvvit.com,jxlgp1@kvvit.com,luoxiuzhen@kvvit.com"
-        from: GitHub Actions Robot
-        secure: true
-        body: "您好，这是由 GitHub Actions 自动运行 Python 脚本生成的每日对照品 Excel 报表，请查收附件。"
-        
-        # 🔗 【完美融合】：将你原本的 2 个附件和新下载的 usprefstd.xls 合并在一起发送
-        attachments: |
-          国家药品标准物质目录_全量在售.xlsx
-          EDQM_Catalog_Output.xlsx
-          usprefstd.xls
+        subject: "【自动报表】今日药品对照品数据监控及对账单"
+        to: liuliming@kvvit.com
+        from: ${{ secrets.EMAIL_USERNAME }}
+        # 【关键整改】：不再使用死板的 body，改为动态拉取 check_data.py 生成的带黄色高亮的 HTML 正文
+        html_body: file://mail_body.html
+        attachments: "国家药品标准物质目录_全量在售.xlsx,EDQM_Catalog_Output.xlsx,usprefstd.xls"
