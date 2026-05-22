@@ -78,36 +78,61 @@ def main():
         error_edqm = "未找到EDQM线上生成的文件！"
 
     # -----------------------------------------------------------------
-    # 3. USP 美国药典对照品比对（降级强读网页伪装格式）
+# -----------------------------------------------------------------
+    # 3. USP 美国药典对照品比对（增强型网页伪装解析）
     # -----------------------------------------------------------------
     if os.path.exists(base_file) and os.path.exists(usp_file):
         try:
             df_base = pd.read_excel(base_file)
+            df_usp = None
             
-            # 防御 USP 老旧系统的 HTML 伪装 XLS 格式
+            # 尝试方法 1：常规 Excel 读取（防备官网修复格式）
             try:
                 df_usp = pd.read_excel(usp_file)
             except Exception:
-                try:
-                    dfs = pd.read_html(usp_file, encoding='utf-8')
-                    df_usp = dfs[0]
-                except Exception:
-                    df_usp = pd.read_csv(usp_file, sep='\t', encoding='utf-8')
+                pass
             
-            df_base_eng = df_base[['对照品英文名称', '对照品英文批号EP-USP']].dropna(subset=['对照品英文名称']).copy()
-            df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称'])
-            df_base_eng['clean_lot']  = clean_string(df_base_eng['对照品英文批号EP-USP'])
+            # 尝试方法 2：作为 HTML/XML 网页表格读取（最精准契合当前格式）
+            if df_usp is None:
+                for enc in ['utf-8', 'utf-16', 'gbk', 'utf-8-sig']:
+                    try:
+                        # 使用 lxml 引擎解析，能够自动过滤掉外层的干扰标签
+                        dfs = pd.read_html(usp_file, encoding=enc, flavor='lxml')
+                        if dfs:
+                            df_usp = dfs[0]
+                            break
+                    except Exception:
+                        continue
+
+            # 尝试方法 3：如果上述都失败，终极容错文本读取（跳过不规则行）
+            if df_usp is None:
+                df_usp = pd.read_csv(usp_file, sep='\t', encoding='utf-8', on_bad_lines='skip')
             
-            df_usp_clean = df_usp[['Product Name', 'Current Lot']].dropna(subset=['Product Name']).copy()
-            df_usp_clean['clean_name'] = clean_string(df_usp_clean['Product Name'])
-            df_usp_clean['clean_lot']  = clean_string(df_usp_clean['Current Lot'])
-            
-            usp_existing_set = set(zip(df_usp_clean['clean_name'], df_usp_clean['clean_lot']))
-            
-            for _, row in df_base_eng.iterrows():
-                if (row['clean_name'], row['clean_lot']) not in usp_existing_set:
-                    missing_usp.append(f"{row['对照品英文名称']} (批号: {row['对照品英文批号EP-USP']})")
+            # 确保成功获取到了数据表
+            if df_usp is not None and not df_usp.empty:
+                # 【修正】：仅去除表头前后的不可见换行和空格，严格保留英文单词间的正常空格！
+                df_usp.columns = df_usp.columns.astype(str).str.strip()
+                
+                # --- 以下完全保留你原本的业务核对逻辑，一字未改 ---
+                df_base_eng = df_base[['对照品英文名称', '对照品英文批号EP-USP']].dropna(subset=['对照品英文名称']).copy()
+                df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称'])
+                df_base_eng['clean_lot']  = clean_string(df_base_eng['对照品英文批号EP-USP'])
+                
+                df_usp_clean = df_usp[['Product Name', 'Current Lot']].dropna(subset=['Product Name']).copy()
+                df_usp_clean['clean_name'] = clean_string(df_usp_clean['Product Name'])
+                df_usp_clean['clean_lot']  = clean_string(df_usp_clean['Current Lot'])
+                
+                usp_existing_set = set(zip(df_usp_clean['clean_name'], df_usp_clean['clean_lot']))
+                
+                for _, row in df_base_eng.iterrows():
+                    if (row['clean_name'], row['clean_lot']) not in usp_existing_set:
+                        missing_usp.append(f"{row['对照品英文名称']} (批号: {row['对照品英文批号EP-USP']})")
+                # --- 原有逻辑结束 ---
+            else:
+                raise ValueError("文件读取成功，但未能解析出任何有效的表格数据结构。")
+                
         except Exception as e:
+            # 完美保留报错降级写进邮件的机制
             error_usp = f"USP比对失败，错误详情：{str(e)}"
     else:
         error_usp = "未找到USP线上生成的文件！"
