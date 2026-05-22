@@ -79,130 +79,123 @@ def main():
 
     # -----------------------------------------------------------------
 # -----------------------------------------------------------------
-# -----------------------------------------------------------------
-# -----------------------------------------------------------------
-               # -----------------------------------------------------------------
-        # 3. USP 美国药典对照品比对（彻底切断文件污染源 + 智能扫描 + 报错集成版）
+    # 3. USP 美国药典对照品比对（彻底切断文件污染源 + 智能扫描 + 报错集成版）
     # -----------------------------------------------------------------
     if os.path.exists(base_file) and os.path.exists(usp_file):
         try:
-                df_base = pd.read_excel(base_file)
-                df_usp = None
+            df_base = pd.read_excel(base_file)
+            df_usp = None
+            
+            import bs4
+            import quopri  # 核心：清洗 MHTML/Quoted-Printable 传输编码污染
+            import re
+            import io
+            
+            # 【关键修正点】：在最前端彻底完成内存解密，再也不给原生 pd.read_html 直接接触原文件的机会
+            try:
+                with open(usp_file, 'rb') as f:
+                    raw_content = f.read()
                 
-                import bs4
-                import quopri  # 核心：清洗 MHTML/Quoted-Printable 传输编码污染
-                import re
-                import io
-                
-                # 【关键修正点】：在最前端彻底完成内存解密，再也不给原生 pd.read_html 直接接触原文件的机会
-                try:
-                    with open(usp_file, 'rb') as f:
-                        raw_content = f.read()
-                    
-                    # 彻底解决 3D"7" 报错：将内容中的 =3D"7" 还原为标准文本
-                    decoded_bytes = quopri.decodestring(raw_content)
-                    clean_html_text = decoded_bytes.decode('utf-8', errors='ignore')
-                except Exception as e:
-                    raise ValueError(f"读取或解码 USP 文件失败: {str(e)}")
+                # 彻底解决 3D"7" 报错：将内容中的 =3D"7" 还原为标准文本
+                decoded_bytes = quopri.decodestring(raw_content)
+                clean_html_text = decoded_bytes.decode('utf-8', errors='ignore')
+            except Exception as e:
+                raise ValueError(f"读取或解码 USP 文件失败: {str(e)}")
 
-                # --- 尝试策略 1：使用标准 BeautifulSoup 提取 <table> 标签 ---
+            # --- 尝试策略 1：使用标准 BeautifulSoup 提取 <table> 标签 ---
+            try:
+                soup = bs4.BeautifulSoup(clean_html_text, 'lxml')
+                tables = soup.find_all('table')
+                if tables:
+                    # 用内存中的干净文本给 pandas 解析
+                    df_usp = pd.read_html(str(tables))[0]
+            except Exception:
+                pass
+            
+            # --- 尝试策略 2（降级策略）：如果策略 1 失败，依然用【干净的清洗文本】输入给 pd.read_html ---
+            if df_usp is None or df_usp.empty:
                 try:
-                    soup = bs4.BeautifulSoup(clean_html_text, 'lxml')
-                    tables = soup.find_all('table')
-                    if tables:
-                        # 用内存中的干净文本给 pandas 解析
-                        df_usp = pd.read_html(str(tables))[0]
-                except Exception:
-                    pass
-                
-                # --- 尝试策略 2（降级策略）：如果策略 1 失败，依然用【干净的清洗文本】输入给 pd.read_html ---
-                if df_usp is None or df_usp.empty:
-                    try:
-                        # 通过 io.StringIO 将清洗后的纯文本包裹，从而替代物理文件路径输入，防止底层解析器崩溃
-                        dfs = pd.read_html(io.StringIO(clean_html_text), flavor='lxml')
-                        for df in dfs:
-                            df_cols_clean = [re.sub(r'\s+', '', str(c)).lower() for c in df.columns.astype(str)]
-                            # 嗅探哪个子表格带有产品名关键字
-                            if any('productname' in c for c in df_cols_clean):
-                                df_usp = df
-                                break
-                        if df_usp is None and len(dfs) > 0:
-                            df_usp = dfs[0]
-                    except Exception as e:
-                        pass
-                
-                # --- 开始解析最终提取出来的 DataFrame ---
-                if df_usp is not None and not df_usp.empty:
-                    df_usp.columns = df_usp.columns.astype(str)
-                    
-                    # 【智能行扫描器】：逐行扫描前 10 行，自动精准适配行漂移并全面粉碎空格污染
-                    real_header_idx = None
-                    for i in range(min(10, len(df_usp))):
-                        row_values = df_usp.iloc[i].astype(str).tolist()
-                        row_values_clean = [re.sub(r'\s+', '', val).lower() for val in row_values]
-                        
-                        # 检测该行是否同时涵盖 Product Name 和 Current Lot
-                        has_name = any("productname" in val for val in row_values_clean)
-                        has_lot = any("currentlot" in val for val in row_values_clean)
-                        
-                        if has_name and has_lot:
-                            real_header_idx = i
+                    # 通过 io.StringIO 将清洗后的纯文本包裹，从而替代物理文件路径输入，防止底层解析器崩溃
+                    dfs = pd.read_html(io.StringIO(clean_html_text), flavor='lxml')
+                    for df in dfs:
+                        df_cols_clean = [re.sub(r'\s+', '', str(c)).lower() for c in df.columns.astype(str)]
+                        # 嗅探哪个子表格带有产品名关键字
+                        if any('productname' in c for c in df_cols_clean):
+                            df_usp = df
                             break
+                    if df_usp is None and len(dfs) > 0:
+                        df_usp = dfs[0]
+                except Exception as e:
+                    pass
+            
+            # --- 开始解析最终提取出来的 DataFrame ---
+            if df_usp is not None and not df_usp.empty:
+                df_usp.columns = df_usp.columns.astype(str)
+                
+                # 【智能行扫描器】：逐行扫描前 10 行，自动精准适配行漂移并全面粉碎空格污染
+                real_header_idx = None
+                for i in range(min(10, len(df_usp))):
+                    row_values = df_usp.iloc[i].astype(str).tolist()
+                    row_values_clean = [re.sub(r'\s+', '', val).lower() for val in row_values]
                     
-                    # 发现符合条件的行，立刻将其作为真正表头进行整体裁剪重塑
-                    if real_header_idx is not None:
-                        df_usp.columns = df_usp.iloc[real_header_idx].astype(str)
-                        df_usp = df_usp.iloc[real_header_idx + 1:].reset_index(drop=True)
+                    # 检测该行是否同时涵盖 Product Name 和 Current Lot
+                    has_name = any("productname" in val for val in row_values_clean)
+                    has_lot = any("currentlot" in val for val in row_values_clean)
                     
-                    # 内部辅助函数：智能过滤、匹配字段
-                    def find_real_col_name(df, target_keyword):
-                        for col in df.columns:
-                            col_clean = re.sub(r'\s+', '', str(col)).lower()
-                            if target_keyword.lower() in col_clean:
-                                return col
-                        return None
-                    
+                    if has_name and has_lot:
+                        real_header_idx = i
+                        break
+                
+                # 发现符合条件的行，立刻将其作为真正表头进行整体裁剪重塑
+                if real_header_idx is not None:
+                    df_usp.columns = df_usp.iloc[real_header_idx].astype(str)
+                    df_usp = df_usp.iloc[real_header_idx + 1:].reset_index(drop=True)
+                
+                # 内部辅助函数：智能过滤、匹配字段
+                def find_real_col_name(df, target_keyword):
+                    for col in df.columns:
+                        col_clean = re.sub(r'\s+', '', str(col)).lower()
+                        if target_keyword.lower() in col_clean:
+                            return col
+                    return None
+                
+                name_col = find_real_col_name(df_usp, "ProductName")
+                lot_col = find_real_col_name(df_usp, "CurrentLot")
+                
+                # 完整继承原有代码的二次提拔兜底逻辑：若未能匹配，强行用第 0 行作为列名重试一次
+                if not name_col or not lot_col:
+                    df_usp.columns = df_usp.iloc[0].astype(str)
+                    df_usp = df_usp.iloc[1:].reset_index(drop=True)
                     name_col = find_real_col_name(df_usp, "ProductName")
                     lot_col = find_real_col_name(df_usp, "CurrentLot")
-                    
-                    # 完整继承原有代码的二次提拔兜底逻辑：若未能匹配，强行用第 0 行作为列名重试一次
-                    if not name_col or not lot_col:
-                        df_usp.columns = df_usp.iloc[0].astype(str)
-                        df_usp = df_usp.iloc[1:].reset_index(drop=True)
-                        name_col = find_real_col_name(df_usp, "ProductName")
-                        lot_col = find_real_col_name(df_usp, "CurrentLot")
-                    
-                    # 严格保留并融合原有的报错机制（缺失必要列名时主动抛出 KeyError）
-                    if not name_col or not lot_col:
-                        raise KeyError(f"未能自动定位到关键列，当前扫描发现的全部列名为: {df_usp.columns.tolist()}")
-                    
-                    # --- 执行原有的比对对账核心逻辑（安全对接，不改变过滤算法） ---
-                    df_base_eng = df_base[['对照品英文名称', '对照品英文批号EP-USP']].dropna(subset=['对照品英文名称']).copy()
-                    df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称'])
-                    df_base_eng['clean_lot'] = clean_string(df_base_eng['对照品英文批号EP-USP'])
-                    
-                    df_usp_clean = df_usp[[name_col, lot_col]].dropna(subset=[name_col]).copy()
-                    df_usp_clean['clean_name'] = clean_string(df_usp_clean[name_col])
-                    df_usp_clean['clean_lot'] = clean_string(df_usp_clean[lot_col])
-                    
-                    usp_existing_set = set(zip(df_usp_clean['clean_name'], df_usp_clean['clean_lot']))
-                    
-                    for _, row in df_base_eng.iterrows():
-                        if (row['clean_name'], row['clean_lot']) not in usp_existing_set:
-                            missing_usp.append(f"{row['对照品英文名称']} (批号: {row['对照品英文批号EP-USP']})")
-                else:
-                    # 保留原代码无法提取出表格式的报错机制
-                    raise ValueError("文件读取完毕，但未能提取出任何有效的 HTML 表格数据格式。")
-            
+                
+                # 严格保留并融合原有的报错机制（缺失必要列名时主动抛出 KeyError）
+                if not name_col or not lot_col:
+                    raise KeyError(f"未能自动定位到关键列，当前扫描发现的全部列名为: {df_usp.columns.tolist()}")
+                
+                # --- 执行原有的比对对账核心逻辑（安全对接，不改变过滤算法） ---
+                df_base_eng = df_base[['对照品英文名称', '对照品英文批号EP-USP']].dropna(subset=['对照品英文名称']).copy()
+                df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称'])
+                df_base_eng['clean_lot'] = clean_string(df_base_eng['对照品英文批号EP-USP'])
+                
+                df_usp_clean = df_usp[[name_col, lot_col]].dropna(subset=[name_col]).copy()
+                df_usp_clean['clean_name'] = clean_string(df_usp_clean[name_col])
+                df_usp_clean['clean_lot'] = clean_string(df_usp_clean[lot_col])
+                
+                usp_existing_set = set(zip(df_usp_clean['clean_name'], df_usp_clean['clean_lot']))
+                
+                for _, row in df_base_eng.iterrows():
+                    if (row['clean_name'], row['clean_lot']) not in usp_existing_set:
+                        missing_usp.append(f"{row['对照品英文名称']} (批号: {row['对照品英文批号EP-USP']})")
+            else:
+                # 保留原代码无法提取出表格式的报错机制
+                raise ValueError("文件读取完毕，但未能提取出任何有效的 HTML 表格数据格式。")
+                
         except Exception as e:
-                # 完美对接后续流程：异常错误全部捕获为字符串，在邮件中进行大红字抛出展示
-                error_usp = f"USP 比对失败，错误详情：{str(e)}"
+            # 完美对接后续流程：异常错误全部捕获为字符串，在邮件中进行大红字抛出展示
+            error_usp = f"USP 比对失败，错误详情：{str(e)}"
     else:
-            error_usp = "未找到 USP 上生成的的文件！"
-
-
-
-    # -----------------------------------------------------------------
+        error_usp = "未找到 USP 上生成的的文件！"
     # 4. 生成带样式的高亮/报错 HTML 邮件正文
     # -----------------------------------------------------------------
     has_missing = missing_chp or missing_edqm or missing_usp
