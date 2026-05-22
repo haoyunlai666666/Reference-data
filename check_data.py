@@ -81,88 +81,125 @@ def main():
 # -----------------------------------------------------------------
 # -----------------------------------------------------------------
 # -----------------------------------------------------------------
-    # 3. USP 美国药典对照品比对（针对“邮件头污染”文件的终极清洗）
-    # -----------------------------------------------------------------
-    if os.path.exists(base_file) and os.path.exists(usp_file):
-        try:
-            df_base = pd.read_excel(base_file)
-            df_usp = None
-            
-            # 使用 bs4 (BeautifulSoup) 辅助解析，无视那些混乱的邮件头，直接从 HTML 结构中提取 table
-            import bs4
-            
+        # -----------------------------------------------------------------
+        # 3. USP 美国药典对照品比对（针对“邮件头污染”与“表头漂移”的终极清洗）
+        # -----------------------------------------------------------------
+        if os.path.exists(base_file) and os.path.exists(usp_file):
             try:
-                # 以二进制模式读取文件内容，跳过所有的乱码和协议头
-                with open(usp_file, 'rb') as f:
-                    content = f.read().decode('utf-8', errors='ignore')
+                df_base = pd.read_excel(base_file)
+                df_usp = None
                 
-                # 直接通过 BeautifulSoup 找到第一个 <table> 标签
-                soup = bs4.BeautifulSoup(content, 'lxml')
-                tables = soup.find_all('table')
+                # 使用 bs4 (BeautifulSoup) 辅助解析，无视那些混乱的邮件头，直接从 HTML 结构中提取 table
+                import bs4
+                import quopri  # 引入处理 Quoted-Printable 污染的内置库
+                import re
                 
-                if tables:
-                    # 将第一个找到的 table 转换为 DataFrame
-                    df_usp = pd.read_html(str(tables[0]))[0]
-            except Exception as e:
-                # 如果 BeautifulSoup 没抓到，降级使用旧的逻辑
-                pass
-
-            # 确保成功获取到了数据表 (如果上面没抓到，再尝试 Pandas 原生解析)
-            if df_usp is None or df_usp.empty:
-                 # 降级尝试：直接使用 pd.read_html 并指定 header，强制它重新判断表头
-                 dfs = pd.read_html(usp_file, flavor='lxml', header=0)
-                 # 尝试从所有解析出的表格中找到含有关键列的那个
-                 for df in dfs:
-                     if 'Product Name' in df.columns.astype(str) or 'ProductName' in df.columns.astype(str):
-                         df_usp = df
-                         break
-            
-            if df_usp is not None and not df_usp.empty:
-                # --- 动态列名嗅探器（保留你的 10 行扫描逻辑，防止表头位置漂移） ---
-                df_usp.columns = df_usp.columns.astype(str)
+                try:
+                    # 以二进制模式读取文件内容，跳过所有的乱码和协议头
+                    with open(usp_file, 'rb') as f:
+                        raw_content = f.read()
+                    
+                    # 【核心修复 1】：完美解码清除类似 =3D"7" 的邮件传输编码污染，解决 int() 转换报错
+                    decoded_bytes = quopri.decodestring(raw_content)
+                    content = decoded_bytes.decode('utf-8', errors='ignore')
+                    
+                    # 直接通过 BeautifulSoup 找到第一个 <table> 标签
+                    soup = bs4.BeautifulSoup(content, 'lxml')
+                    tables = soup.find_all('table')
+                    
+                    if tables:
+                        # 将第一个找到的 table 转换为 DataFrame
+                        df_usp = pd.read_html(str(tables[0]))[0]
+                except Exception as e:
+                    # 如果 BeautifulSoup 没抓到，降级使用旧的逻辑
+                    pass
                 
-                def find_real_col_name(df, target_keyword):
-                    import re
-                    for col in df.columns:
-                        col_clean = re.sub(r'\s+', '', col).lower()
-                        if target_keyword.lower() in col_clean:
-                            return col
-                    return None
+                # 确保成功获取到了数据表 (如果前面没抓到，再尝试 Pandas 原生解析)
+                if df_usp is None or df_usp.empty:
+                    # 降级尝试将直接使用 pd.read_html 并指定 header，强制它重新判断表头
+                    dfs = pd.read_html(usp_file, flavor='lxml', header=0)
+                    # 尝试从所有解析出的表格中找到含有关键列的那个
+                    for df in dfs:
+                        df_cols_str = df.columns.astype(str).tolist()
+                        df_cols_clean = [re.sub(r'\s+', '', c).lower() for c in df_cols_str]
+                        if any('productname' in c for c in df_cols_clean):
+                            df_usp = df
+                            break
                 
-                name_col = find_real_col_name(df_usp, "ProductName")
-                lot_col = find_real_col_name(df_usp, "CurrentLot")
-                
-                # 如果列名提取失败，尝试提拔第 0 行作为表头
-                if not name_col or not lot_col:
-                    df_usp.columns = df_usp.iloc[0]
-                    df_usp = df_usp.iloc[1:].reset_index(drop=True)
+                # 开始解析提取出的 DataFrame
+                if df_usp is not None and not df_usp.empty:
+                    # 确保所有列名都是字符串格式
+                    df_usp.columns = df_usp.columns.astype(str)
+                    
+                    # 【核心修复 2】：前 10 行智能扫描器，自动适应表头行上下漂移，彻底消除空格和大小写污染
+                    real_header_idx = None
+                    for i in range(min(10, len(df_usp))):
+                        # 提取当前行的所有单元格，转换为字符串
+                        row_values = df_usp.iloc[i].astype(str).tolist()
+                        # 强力清除单元格内所有空格并转为小写
+                        row_values_clean = [re.sub(r'\s+', '', val).lower() for val in row_values]
+                        
+                        # 判断当前行是否同时包含 Product Name 和 Current Lot 的关键字
+                        has_name = any("productname" in val for val in row_values_clean)
+                        has_lot = any("currentlot" in val for val in row_values_clean)
+                        
+                        if has_name and has_lot:
+                            real_header_idx = i
+                            break
+                    
+                    # 如果在前 10 行中定位到了真正的表头行
+                    if real_header_idx is not None:
+                        # 提拔这一行作为真正的表头
+                        df_usp.columns = df_usp.iloc[real_header_idx].astype(str)
+                        # 切片保留表头下方的数据行，并重置索引
+                        df_usp = df_usp.iloc[real_header_idx + 1:].reset_index(drop=True)
+                    
+                    # --- 动态列名嗅探器（保留并强化对空格的容错） ---
+                    def find_real_col_name(df, target_keyword):
+                        for col in df.columns:
+                            col_clean = re.sub(r'\s+', '', str(col)).lower()
+                            if target_keyword.lower() in col_clean:
+                                return col
+                        return None
+                    
                     name_col = find_real_col_name(df_usp, "ProductName")
                     lot_col = find_real_col_name(df_usp, "CurrentLot")
+                    
+                    # 保留原代码的二次提拔兜底逻辑：如果上面的策略仍未找到，尝试提拔第 0 行
+                    if not name_col or not lot_col:
+                        df_usp.columns = df_usp.iloc[0].astype(str)
+                        df_usp = df_usp.iloc[1:].reset_index(drop=True)
+                        name_col = find_real_col_name(df_usp, "ProductName")
+                        lot_col = find_real_col_name(df_usp, "CurrentLot")
+                    
+                    # 保留原代码的严格报错机制（KeyError）
+                    if not name_col or not lot_col:
+                        raise KeyError(f"未能自动定位到列，当前发现列名: {df_usp.columns.tolist()}")
+                    
+                    # --- 执行原有的比对逻辑（完全保留） ---
+                    df_base_eng = df_base[[' 对 照 品 英 文 名 称 ', ' 对照品英文批号 EP-USP ']].dropna(subset=['对照品英文名称']).copy()
+                    df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称'])
+                    df_base_eng['clean_lot'] = clean_string(df_base_eng['对照品英文批号 EP-USP'])
+                    
+                    df_usp_clean = df_usp[[name_col, lot_col]].dropna(subset=[name_col]).copy()
+                    df_usp_clean['clean_name'] = clean_string(df_usp_clean[name_col])
+                    df_usp_clean['clean_lot'] = clean_string(df_usp_clean[lot_col])
+                    
+                    usp_existing_set = set(zip(df_usp_clean['clean_name'], df_usp_clean['clean_lot']))
+                    
+                    for _, row in df_base_eng.iterrows():
+                        if (row['clean_name'], row['clean_lot']) not in usp_existing_set:
+                            missing_usp.append(f"{row['对照品英文名称']} (批号: {row['对照品英文批号 EP-USP']})")
+                else:
+                    # 保留原代码未能解析出表格结构时的 ValueError 报错机制
+                    raise ValueError("文件读取成功，但未能解析出任何有效的表格数据结构。")
+            
+            except Exception as e:
+                # 保留并完美对接原代码的最终错误捕获与邮件正文报错机制
+                error_usp = f"USP 比对失败，错误详情：{str(e)}"
+        else:
+            error_usp = "未找到 USP 上生成的的文件！"
 
-                if not name_col or not lot_col:
-                    raise KeyError(f"未能自动定位到列，当前发现列名: {df_usp.columns.tolist()}")
-
-                # --- 执行原有的比对逻辑 ---
-                df_base_eng = df_base[['对照品英文名称', '对照品英文批号EP-USP']].dropna(subset=['对照品英文名称']).copy()
-                df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称'])
-                df_base_eng['clean_lot']  = clean_string(df_base_eng['对照品英文批号EP-USP'])
-                
-                df_usp_clean = df_usp[[name_col, lot_col]].dropna(subset=[name_col]).copy()
-                df_usp_clean['clean_name'] = clean_string(df_usp_clean[name_col])
-                df_usp_clean['clean_lot']  = clean_string(df_usp_clean[lot_col])
-                
-                usp_existing_set = set(zip(df_usp_clean['clean_name'], df_usp_clean['clean_lot']))
-                
-                for _, row in df_base_eng.iterrows():
-                    if (row['clean_name'], row['clean_lot']) not in usp_existing_set:
-                        missing_usp.append(f"{row['对照品英文名称']} (批号: {row['对照品英文批号EP-USP']})")
-            else:
-                raise ValueError("文件读取成功，但未能解析出任何有效的表格数据结构。")
-                
-        except Exception as e:
-            error_usp = f"USP比对失败，错误详情：{str(e)}"
-    else:
-        error_usp = "未找到USP线上生成的文件！"
 
     # -----------------------------------------------------------------
     # 4. 生成带样式的高亮/报错 HTML 邮件正文
