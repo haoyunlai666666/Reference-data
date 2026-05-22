@@ -35,6 +35,7 @@ jobs:
    # 4. 执行所有数据生成脚本，并在最后运行对账和比对脚本
     - name: Run Python script
       run: |
+        python duibi.py
         python zhuaqu.py
         python daochuusp.py
         python check_data.py # 【全新引入】：读取本地文件与上述三个生成的文件做双列多库交叉比对
@@ -48,7 +49,7 @@ jobs:
         username: ${{ secrets.EMAIL_USERNAME }}
         password: ${{ secrets.EMAIL_PASSWORD }}
         subject: "【自动报表】今日药品对照品数据监控及对账单"
-        to: liuliming@kvvit.com
+        to: "liuliming@kvvit.com,jxlgp1@kvvit.com,luoxiuzhen@kvvit.com"
         from: ${{ secrets.EMAIL_USERNAME }}
         # 【关键整改】：不再使用死板的 body，改为动态拉取 check_data.py 生成的带黄色高亮的 HTML 正文
         html_body: file://mail_body.html
