@@ -8,42 +8,46 @@ from urllib.parse import urljoin
 from playwright.sync_api import sync_playwright
 from openpyxl.utils import get_column_letter
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 # ================= 严格定义所有网址，绝不精简 =================
 # 目录抓取部分
 REFERER_URL = "http://aoc.nifdc.org.cn/sell/home/search.html"
 API_URL = "http://aoc.nifdc.org.cn/sell/sgoodsQuerywaiw.do?formAction=queryZongList"
-
 # 停用通知公告部分
 NOTICE_INDEX_URL = "https://www.nifdc.org.cn/nifdc/bshff/bzhwzh/index.html"
 # ================= ============================================
+
 HEADERS = {
- "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
- "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
- "Accept-Language": "zh-CN,zh;q=0.9",
- "Origin": "http://aoc.nifdc.org.cn/sell/home/search.html",
- "Referer": REFERER_URL,
- "Content-Type": "application/x-www-form-urlencoded"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9",
+    "Origin": "http://aoc.nifdc.org.cn/sell/home/search.html",
+    "Referer": REFERER_URL,
+    "Content-Type": "application/x-www-form-urlencoded"
 }
+
 @retry(
- stop=stop_after_attempt(5),
- wait=wait_exponential(multiplier=2, min=4, max=15),
- retry=retry_if_exception_type(requests.RequestException),
- reraise=True
+    stop=stop_after_attempt(6),  # 稍微增加重试次数
+    wait=wait_exponential(multiplier=3, min=5, max=30),  # 拉长避让时间，缓解服务器504压力
+    retry=retry_if_exception_type(requests.RequestException),
+    reraise=True  # 确保重试最终失败时把异常抛出，供主循环识别
 )
 def fetch_page_html(page_num):
     payload = {
-    "formAction": "queryZongList",
-    "curPage": str(page_num),
-    "toPage": str(page_num),
-    "sgoodsno": "",
-    "sgoodsname": ""
+        "formAction": "queryZongList",
+        "curPage": str(page_num),
+        "toPage": str(page_num),
+        "sgoodsno": "",
+        "sgoodsname": ""
     }
-    response = requests.post(API_URL, headers=HEADERS, data=payload, timeout=20)
+    # 将 timeout 缩短为 15 秒，避免单次卡死太久，更高效地触发 tenacity 的指数避让重试
+    response = requests.post(API_URL, headers=HEADERS, data=payload, timeout=15)
     response.encoding = 'gbk'
     if response.status_code != 200:
         print(f"[警告] 遭遇状态码 {response.status_code} 反爬拦截或异常，正在启动指数避让重试...")
-    response.raise_for_status()
+        response.raise_for_status()
     return response.text
+
 def parse_table_html(html_content):
     soup = BeautifulSoup(html_content, "html.parser")
     rows = soup.find_all("tr")
@@ -54,22 +58,22 @@ def parse_table_html(html_content):
             row_dict = {inp.get("name"): inp.get("value", "").strip() for inp in inputs if inp.get("name")}
             if row_dict.get("sgoods_no"):
                 item = {
-                "标准品编号": row_dict.get("sgoods_no", ""),
-                "品名": row_dict.get("sgoods_name", ""),
-                "批号": row_dict.get("xsBatch_no", row_dict.get("batch_no", "")).strip(),
-                "规格": row_dict.get("standard", ""),
-                "用途": row_dict.get("used", ""),
-                "保存条件": row_dict.get("save_condition", ""),
-                "停用日期": "", 
-                "有效使用期限": "" 
+                    "标准品编号": row_dict.get("sgoods_no", ""),
+                    "品名": row_dict.get("sgoods_name", ""),
+                    "批号": row_dict.get("xsBatch_no", row_dict.get("batch_no", "")).strip(),
+                    "规格": row_dict.get("standard", ""),
+                    "用途": row_dict.get("used", ""),
+                    "保存条件": row_dict.get("save_condition", ""),
+                    "停用日期": "", 
+                    "有效使用期限": "" 
                 }
                 page_data.append(item)
     return page_data
+
 def scrape_all_stop_notices():
     """全量清洗停用通知公告以及供应新情况中的表格数据"""
     stop_dict = {} 
     expiry_dict = {} 
- 
     print(f"\n 正在调用浏览器模块，切入公告主页：{NOTICE_INDEX_URL}")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -81,24 +85,20 @@ def scrape_all_stop_notices():
         while True:
             print(f" 正在扫描通知公告列表第 {page_idx} 页...")
             soup = BeautifulSoup(page.content(), "html.parser")
- 
             stop_urls = [] 
             supply_urls = [] 
- 
             for l in soup.find_all("a"):
                 title = l.get_text(strip=True)
                 href = l.get("href", "")
                 if not href: continue
- 
                 if "化学对照品停用通知" in title:
                     abs_url = urljoin(NOTICE_INDEX_URL, href)
                     if abs_url not in stop_urls: stop_urls.append(abs_url)
                 elif "国家药品标准物质供应新情况" in title:
                     abs_url = urljoin(NOTICE_INDEX_URL, href)
                     if abs_url not in supply_urls: supply_urls.append(abs_url)
- 
             print(f" [分析完成] 本页发现 {len(stop_urls)} 个停用链接，{len(supply_urls)} 个供应新情况链接...")
- 
+            
             # --- 模块 A：顺序解析【停用通知】 ---
             for url in stop_urls:
                 try:
@@ -117,12 +117,9 @@ def scrape_all_stop_notices():
                     clean_html_str = re.sub(r"</?(span|font|o:p|a|strong|b|i)[^>]*>", "", raw_html_str)
                     clean_soup = BeautifulSoup(clean_html_str, "html.parser")
                     lines = [line.strip() for line in clean_soup.get_text(separator="\n").split("\n") if line.strip()]
- 
                     pending_batch = None 
- 
                     for line in lines:
                         nums = re.findall(r"\d+", line)
- 
                         if len(nums) == 0 and pending_batch:
                             name_clean = line.strip(" \t\n\r,，.。.、:：;； ")
                             if name_clean in ["特此通知", "现予以公布", "关于发布", "请各单位", "通知"] or not name_clean:
@@ -133,11 +130,8 @@ def scrape_all_stop_notices():
                             print(f" [ 跨行锁定成功 ] 品名 : {name_clean} | 纯数字批号 : {pure_digits} | 停用日期: {publish_date}")
                             pending_batch = None
                             continue
- 
                         if len(nums) < 2: continue
                         part1, part2 = nums[0], nums[1]
- 
-                        # 【彻底消除语法错误】：放弃 in 关键字，改用万无一失的显式等于判断，完全封死接口格式化漏洞
                         if (len(part1) == 4 or len(part1) == 6) and (len(part2) == 4 or len(part2) == 6):
                             start_pos = line.find(str(part1))
                             end_pos = line.find(str(part2), start_pos + len(str(part1))) + len(str(part2))
@@ -149,7 +143,6 @@ def scrape_all_stop_notices():
                             if not txt_before and not txt_after:
                                 pending_batch = pure_digits 
                                 continue
- 
                             noise_words = ["现停止使用", "现决定停用", "各有关单位", "特此通知", "关于发布", "通知", "发布时间"]
                             if any(w in txt_before for w in noise_words) or not txt_before:
                                 name_clean = txt_after
@@ -169,7 +162,7 @@ def scrape_all_stop_notices():
                     print(f" 读取通知详情页失败 {url}: {e}")
                     try: detail_page.close()
                     except: pass
- 
+
             # --- 模块 B：顺序解析【供应新情况】详情页中的表格 ---
             for url in supply_urls:
                 try:
@@ -177,20 +170,15 @@ def scrape_all_stop_notices():
                     detail_page.goto(url, timeout=45000, wait_until="domcontentloaded")
                     detail_page.wait_for_timeout(2000)
                     detail_soup = BeautifulSoup(detail_page.content(), "html.parser")
- 
                     tables = detail_soup.find_all("table")
                     for table in tables:
                         rows = table.find_all("tr")
                         if not rows: continue
- 
                         header_cells = [th.get_text(strip=True) for th in rows[0].find_all(["td", "th"])]
- 
-                        # 定义可能出现的表头别名，增强对不同页面格式的鲁棒性
                         name_keywords = ["品种名称", "名称"]
                         batch_keywords = ["批号"]
                         expiry_keywords = ["有效使用期限", "有效至", "有效期至"]
                         name_idx, batch_idx, expiry_idx = -1, -1, -1
-                        # 动态遍历当前表头，检索并锁定各列的准确索引
                         for idx, cell_text in enumerate(header_cells):
                             if any(kw in cell_text for kw in name_keywords) and name_idx == -1:
                                 name_idx = idx
@@ -198,28 +186,21 @@ def scrape_all_stop_notices():
                                 batch_idx = idx
                             elif any(kw in cell_text for kw in expiry_keywords) and expiry_idx == -1:
                                 expiry_idx = idx
- 
-                        # 校验锁定的列名文字，实现三种特定三要素表头组合的强绑定识别
                         is_valid_table = False
                         if name_idx != -1 and batch_idx != -1 and expiry_idx != -1:
                             matched_name_text = header_cells[name_idx]
                             matched_batch_text = header_cells[batch_idx]
                             matched_expiry_text = header_cells[expiry_idx]
- 
                             cond1 = ("品种名称" in matched_name_text) and ("批号" in matched_batch_text) and ("有效使用期限" in matched_expiry_text)
                             cond2 = ("名称" in matched_name_text) and ("批号" in matched_batch_text) and ("有效期至" in matched_expiry_text)
                             cond3 = ("名称" in matched_name_text) and ("批号" in matched_batch_text) and ("有效使用期限" in matched_expiry_text)
- 
                             if cond1 or cond2 or cond3:
                                 is_valid_table = True
- 
-                        # 只有完美符合三种强锁定组合之一的表格，才执行数据提取
                         if is_valid_table:
                             for data_row in rows[1:]:
                                 cells = [td.get_text(strip=True) for td in data_row.find_all(["td", "th"])]
                                 if len(cells) <= max(name_idx, batch_idx, expiry_idx): 
                                     continue
- 
                                 row_name = cells[name_idx]
                                 row_batch = cells[batch_idx]
                                 row_expiry = cells[expiry_idx]
@@ -233,7 +214,7 @@ def scrape_all_stop_notices():
                     print(f" 读取供应情况详情页失败 {url}: {e}")
                     try: detail_page.close()
                     except: pass
- 
+
             next_btn = page.locator("text='下一页'").first
             if next_btn and next_btn.is_visible() and next_btn.is_enabled():
                 next_btn.click(force=True)
@@ -243,62 +224,57 @@ def scrape_all_stop_notices():
                 print(" 已经成功安全扫描完公告系统中的所有分页。")
                 break
         browser.close()
-        return stop_dict, expiry_dict 
+    return stop_dict, expiry_dict 
+
 def main():
     all_items = []
     print(f" 正在基于底层直链执行全量目录冲刷，环境参照页：{REFERER_URL}")
- 
     current_page = 1
     total_pages = 9999 
- 
     while current_page <= total_pages:
         try:
             print(f"-> 正在向服务器请求第 {current_page} 页的原始数据...")
             html_content = fetch_page_html(current_page)
- 
             if current_page == 1:
                 soup = BeautifulSoup(html_content, "html.parser")
                 to_page_input = soup.find("input", {"name": "toPage"})
                 if to_page_input and to_page_input.get("value"):
                     try:
                         total_pages = int(to_page_input.get("value"))
-                        print(f" 成 功 嗅 探 到 在 售 物 质 目 录 系 统 当 前 总 页 数 为 ： {total_pages} 页")
+                        print(f" 成功嗅探到在售物质目录系统当前总页数为：{total_pages} 页")
                     except ValueError:
                         pass
- 
             page_data = parse_table_html(html_content)
             if not page_data: 
                 print(f" 监测到第 {current_page} 页无有效标准品数据，自动安全熔断。")
                 break
- 
             all_items.extend(page_data)
             current_page += 1
             time.sleep(random.uniform(3.5, 5.5)) 
-        except Exception as e:
-            print(f" [请求中断] 发生错误: {e}")
+        except requests.RequestException as e:
+            # 捕获经过 tenacity 多次重试后仍然彻底失败的网络异常
+            print(f" [请求中断] 经过多次指数重试后，服务器依然返回错误或超时: {e}")
             break
- 
+        except Exception as e:
+            print(f" [处理中断] 发生非网络引发的未知错误: {e}")
+            break
+
     df = pd.DataFrame(all_items)
     stop_data_map, expiry_data_map = scrape_all_stop_notices()
- 
     print("\n 正在进行 [品名 + 批号] 双数据源字段联动核对，自动填入停用日期与有效使用期限...")
     stop_match_count = 0
     expiry_match_count = 0
- 
     for idx, row in df.iterrows():
         batch_key = row["批号"].strip()
         catalog_pure_digits = re.sub(r"[^0-9]", "", batch_key)
- 
         if catalog_pure_digits in stop_data_map:
             df.at[idx, "停用日期"] = stop_data_map[catalog_pure_digits]
             stop_match_count += 1
- 
         if catalog_pure_digits in expiry_data_map:
             df.at[idx, "有效使用期限"] = expiry_data_map[catalog_pure_digits]
             expiry_match_count += 1
- 
     print(f" 比对完成！在全量在售目录数据中，共成功匹配并更新了 {stop_match_count} 项停用日期，{expiry_match_count} 项有效使用期限。")
- 
+    
     output_file = "国家药品标准物质目录_全量在售.xlsx"
     print(f"\n 正在将全量数据无损写入：{output_file}")
     try:
@@ -317,5 +293,6 @@ def main():
         print(f"\n 运行结束！已成功生成全量在售标准物质及有效期限匹配总表。")
     except PermissionError:
         print(f"\n 错误：无法写入文件！请务必关闭正在被 Excel 或 WPS 打开的 '{output_file}'，然后重新运行脚本！")
+
 if __name__ == "__main__":
     main()
