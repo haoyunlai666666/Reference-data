@@ -177,9 +177,9 @@ def main():
                         raise KeyError(f"未能自动定位到关键列，当前扫描发现的全部列名为: {df_usp.columns.tolist()}")
                     
                     # --- 执行原有的比对对账核心逻辑（安全对接，不改变过滤算法） ---
-                    df_base_eng = df_base[[' 对 照 品 英 文 名 称 ', ' 对照品英文批号 EP-USP ']].dropna(subset=['对照品英文名称']).copy()
+                    df_base_eng = df_base[['对照品英文名称', '对照品英文批号EP-USP']].dropna(subset=['对照品英文名称']).copy()
                     df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称'])
-                    df_base_eng['clean_lot'] = clean_string(df_base_eng['对照品英文批号 EP-USP'])
+                    df_base_eng['clean_lot'] = clean_string(df_base_eng['对照品英文批号EP-USP'])
                     
                     df_usp_clean = df_usp[[name_col, lot_col]].dropna(subset=[name_col]).copy()
                     df_usp_clean['clean_name'] = clean_string(df_usp_clean[name_col])
@@ -189,7 +189,7 @@ def main():
                     
                     for _, row in df_base_eng.iterrows():
                         if (row['clean_name'], row['clean_lot']) not in usp_existing_set:
-                            missing_usp.append(f"{row['对照品英文名称']} (批号: {row['对照品英文批号 EP-USP']})")
+                            missing_usp.append(f"{row['对照品英文名称']} (批号: {row['对照品英文批号EP-USP']})")
                 else:
                     # 保留原代码无法提取出表格式的报错机制
                     raise ValueError("文件读取完毕，但未能提取出任何有效的 HTML 表格数据格式。")
