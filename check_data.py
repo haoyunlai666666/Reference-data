@@ -79,7 +79,8 @@ def main():
 
     # -----------------------------------------------------------------
 # -----------------------------------------------------------------
-    # 3. USP 美国药典对照品比对（增强型网页伪装解析）
+# -----------------------------------------------------------------
+    # 3. USP 美国药典对照品比对（增强型网页解析 + 动态列名嗅探）
     # -----------------------------------------------------------------
     if os.path.exists(base_file) and os.path.exists(usp_file):
         try:
@@ -93,6 +94,7 @@ def main():
                 pass
             
             # 尝试方法 2：作为 HTML/XML 网页表格读取（最精准契合当前格式）
+            # 注意：运行此代码前，须确保环境中已安装 lxml 库 (pip install lxml)
             if df_usp is None:
                 for enc in ['utf-8', 'utf-16', 'gbk', 'utf-8-sig']:
                     try:
@@ -110,24 +112,56 @@ def main():
             
             # 确保成功获取到了数据表
             if df_usp is not None and not df_usp.empty:
-                # 【修正】：仅去除表头前后的不可见换行和空格，严格保留英文单词间的正常空格！
-                df_usp.columns = df_usp.columns.astype(str).str.strip()
                 
-                # --- 以下完全保留你原本的业务核对逻辑，一字未改 ---
+                # --- 【核心升级：动态列名嗅探器】 ---
+                df_usp.columns = df_usp.columns.astype(str)
+                
+                def find_real_col_name(df, target_keyword):
+                    """无视空格、换行、大小写，在现有列名中寻找目标列的真实原始名称"""
+                    target_clean = target_keyword.replace(" ", "").lower()
+                    for col in df.columns:
+                        import re
+                        col_clean = re.sub(r'\s+', '', col).lower()
+                        if target_clean in col_clean:
+                            return col
+                    return None
+                
+                name_col = find_real_col_name(df_usp, "ProductName")
+                lot_col = find_real_col_name(df_usp, "CurrentLot")
+                
+                # 极端情况：如果列名中找不到，说明表头可能被错当成了数据行，往下找前 10 行
+                if not name_col or not lot_col:
+                    for i in range(min(10, len(df_usp))):
+                        # 获取这一行数据，全部转成无空格小写字符串
+                        row_clean = df_usp.iloc[i].astype(str).str.replace(r'\s+', '', regex=True).str.lower()
+                        if any("productname" in str(x) for x in row_clean) and any("currentlot" in str(x) for x in row_clean):
+                            # 找到了真正的表头！把这行提拔为 DataFrame 的列名
+                            df_usp.columns = df_usp.iloc[i].astype(str)
+                            name_col = find_real_col_name(df_usp, "ProductName")
+                            lot_col = find_real_col_name(df_usp, "CurrentLot")
+                            # 删掉被提拔的表头及其以上的无用行，重置索引
+                            df_usp = df_usp.iloc[i+1:].reset_index(drop=True)
+                            break
+                            
+                # 如果嗅探完还是找不到，主动抛出实际列名以便排错
+                if not name_col or not lot_col:
+                    raise KeyError(f"解析成功，但未能找到目标列。当前实际抓取到的列名有: {df_usp.columns.tolist()}")
+
+                # --- 找到真实列名后，执行原有的比对逻辑 ---
                 df_base_eng = df_base[['对照品英文名称', '对照品英文批号EP-USP']].dropna(subset=['对照品英文名称']).copy()
                 df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称'])
                 df_base_eng['clean_lot']  = clean_string(df_base_eng['对照品英文批号EP-USP'])
                 
-                df_usp_clean = df_usp[['Product Name', 'Current Lot']].dropna(subset=['Product Name']).copy()
-                df_usp_clean['clean_name'] = clean_string(df_usp_clean['Product Name'])
-                df_usp_clean['clean_lot']  = clean_string(df_usp_clean['Current Lot'])
+                # 这里用嗅探到的真实列名（name_col, lot_col）去提取数据，彻底告别 KeyError
+                df_usp_clean = df_usp[[name_col, lot_col]].dropna(subset=[name_col]).copy()
+                df_usp_clean['clean_name'] = clean_string(df_usp_clean[name_col])
+                df_usp_clean['clean_lot']  = clean_string(df_usp_clean[lot_col])
                 
                 usp_existing_set = set(zip(df_usp_clean['clean_name'], df_usp_clean['clean_lot']))
                 
                 for _, row in df_base_eng.iterrows():
                     if (row['clean_name'], row['clean_lot']) not in usp_existing_set:
                         missing_usp.append(f"{row['对照品英文名称']} (批号: {row['对照品英文批号EP-USP']})")
-                # --- 原有逻辑结束 ---
             else:
                 raise ValueError("文件读取成功，但未能解析出任何有效的表格数据结构。")
                 
