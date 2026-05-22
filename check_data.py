@@ -80,79 +80,73 @@ def main():
     # -----------------------------------------------------------------
 # -----------------------------------------------------------------
 # -----------------------------------------------------------------
-    # 3. USP 美国药典对照品比对（增强型网页解析 + 动态列名嗅探）
+# -----------------------------------------------------------------
+    # 3. USP 美国药典对照品比对（针对“邮件头污染”文件的终极清洗）
     # -----------------------------------------------------------------
     if os.path.exists(base_file) and os.path.exists(usp_file):
         try:
             df_base = pd.read_excel(base_file)
             df_usp = None
             
-            # 尝试方法 1：常规 Excel 读取（防备官网修复格式）
+            # 使用 bs4 (BeautifulSoup) 辅助解析，无视那些混乱的邮件头，直接从 HTML 结构中提取 table
+            import bs4
+            
             try:
-                df_usp = pd.read_excel(usp_file)
-            except Exception:
-                pass
-            
-            # 尝试方法 2：作为 HTML/XML 网页表格读取（最精准契合当前格式）
-            # 注意：运行此代码前，须确保环境中已安装 lxml 库 (pip install lxml)
-            if df_usp is None:
-                for enc in ['utf-8', 'utf-16', 'gbk', 'utf-8-sig']:
-                    try:
-                        # 使用 lxml 引擎解析，能够自动过滤掉外层的干扰标签
-                        dfs = pd.read_html(usp_file, encoding=enc, flavor='lxml')
-                        if dfs:
-                            df_usp = dfs[0]
-                            break
-                    except Exception:
-                        continue
-
-            # 尝试方法 3：如果上述都失败，终极容错文本读取（跳过不规则行）
-            if df_usp is None:
-                df_usp = pd.read_csv(usp_file, sep='\t', encoding='utf-8', on_bad_lines='skip')
-            
-            # 确保成功获取到了数据表
-            if df_usp is not None and not df_usp.empty:
+                # 以二进制模式读取文件内容，跳过所有的乱码和协议头
+                with open(usp_file, 'rb') as f:
+                    content = f.read().decode('utf-8', errors='ignore')
                 
-                # --- 【核心升级：动态列名嗅探器】 ---
+                # 直接通过 BeautifulSoup 找到第一个 <table> 标签
+                soup = bs4.BeautifulSoup(content, 'lxml')
+                tables = soup.find_all('table')
+                
+                if tables:
+                    # 将第一个找到的 table 转换为 DataFrame
+                    df_usp = pd.read_html(str(tables[0]))[0]
+            except Exception as e:
+                # 如果 BeautifulSoup 没抓到，降级使用旧的逻辑
+                pass
+
+            # 确保成功获取到了数据表 (如果上面没抓到，再尝试 Pandas 原生解析)
+            if df_usp is None or df_usp.empty:
+                 # 降级尝试：直接使用 pd.read_html 并指定 header，强制它重新判断表头
+                 dfs = pd.read_html(usp_file, flavor='lxml', header=0)
+                 # 尝试从所有解析出的表格中找到含有关键列的那个
+                 for df in dfs:
+                     if 'Product Name' in df.columns.astype(str) or 'ProductName' in df.columns.astype(str):
+                         df_usp = df
+                         break
+            
+            if df_usp is not None and not df_usp.empty:
+                # --- 动态列名嗅探器（保留你的 10 行扫描逻辑，防止表头位置漂移） ---
                 df_usp.columns = df_usp.columns.astype(str)
                 
                 def find_real_col_name(df, target_keyword):
-                    """无视空格、换行、大小写，在现有列名中寻找目标列的真实原始名称"""
-                    target_clean = target_keyword.replace(" ", "").lower()
+                    import re
                     for col in df.columns:
-                        import re
                         col_clean = re.sub(r'\s+', '', col).lower()
-                        if target_clean in col_clean:
+                        if target_keyword.lower() in col_clean:
                             return col
                     return None
                 
                 name_col = find_real_col_name(df_usp, "ProductName")
                 lot_col = find_real_col_name(df_usp, "CurrentLot")
                 
-                # 极端情况：如果列名中找不到，说明表头可能被错当成了数据行，往下找前 10 行
+                # 如果列名提取失败，尝试提拔第 0 行作为表头
                 if not name_col or not lot_col:
-                    for i in range(min(10, len(df_usp))):
-                        # 获取这一行数据，全部转成无空格小写字符串
-                        row_clean = df_usp.iloc[i].astype(str).str.replace(r'\s+', '', regex=True).str.lower()
-                        if any("productname" in str(x) for x in row_clean) and any("currentlot" in str(x) for x in row_clean):
-                            # 找到了真正的表头！把这行提拔为 DataFrame 的列名
-                            df_usp.columns = df_usp.iloc[i].astype(str)
-                            name_col = find_real_col_name(df_usp, "ProductName")
-                            lot_col = find_real_col_name(df_usp, "CurrentLot")
-                            # 删掉被提拔的表头及其以上的无用行，重置索引
-                            df_usp = df_usp.iloc[i+1:].reset_index(drop=True)
-                            break
-                            
-                # 如果嗅探完还是找不到，主动抛出实际列名以便排错
-                if not name_col or not lot_col:
-                    raise KeyError(f"解析成功，但未能找到目标列。当前实际抓取到的列名有: {df_usp.columns.tolist()}")
+                    df_usp.columns = df_usp.iloc[0]
+                    df_usp = df_usp.iloc[1:].reset_index(drop=True)
+                    name_col = find_real_col_name(df_usp, "ProductName")
+                    lot_col = find_real_col_name(df_usp, "CurrentLot")
 
-                # --- 找到真实列名后，执行原有的比对逻辑 ---
+                if not name_col or not lot_col:
+                    raise KeyError(f"未能自动定位到列，当前发现列名: {df_usp.columns.tolist()}")
+
+                # --- 执行原有的比对逻辑 ---
                 df_base_eng = df_base[['对照品英文名称', '对照品英文批号EP-USP']].dropna(subset=['对照品英文名称']).copy()
                 df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称'])
                 df_base_eng['clean_lot']  = clean_string(df_base_eng['对照品英文批号EP-USP'])
                 
-                # 这里用嗅探到的真实列名（name_col, lot_col）去提取数据，彻底告别 KeyError
                 df_usp_clean = df_usp[[name_col, lot_col]].dropna(subset=[name_col]).copy()
                 df_usp_clean['clean_name'] = clean_string(df_usp_clean[name_col])
                 df_usp_clean['clean_lot']  = clean_string(df_usp_clean[lot_col])
@@ -166,7 +160,6 @@ def main():
                 raise ValueError("文件读取成功，但未能解析出任何有效的表格数据结构。")
                 
         except Exception as e:
-            # 完美保留报错降级写进邮件的机制
             error_usp = f"USP比对失败，错误详情：{str(e)}"
     else:
         error_usp = "未找到USP线上生成的文件！"
