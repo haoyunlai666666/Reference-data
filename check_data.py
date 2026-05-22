@@ -83,9 +83,9 @@ def main():
 # -----------------------------------------------------------------
                # -----------------------------------------------------------------
         # 3. USP 美国药典对照品比对（彻底切断文件污染源 + 智能扫描 + 报错集成版）
-        # -----------------------------------------------------------------
-        if os.path.exists(base_file) and os.path.exists(usp_file):
-            try:
+    # -----------------------------------------------------------------
+    if os.path.exists(base_file) and os.path.exists(usp_file):
+        try:
                 df_base = pd.read_excel(base_file)
                 df_usp = None
                 
@@ -194,10 +194,10 @@ def main():
                     # 保留原代码无法提取出表格式的报错机制
                     raise ValueError("文件读取完毕，但未能提取出任何有效的 HTML 表格数据格式。")
             
-            except Exception as e:
+        except Exception as e:
                 # 完美对接后续流程：异常错误全部捕获为字符串，在邮件中进行大红字抛出展示
                 error_usp = f"USP 比对失败，错误详情：{str(e)}"
-        else:
+    else:
             error_usp = "未找到 USP 上生成的的文件！"
 
 
