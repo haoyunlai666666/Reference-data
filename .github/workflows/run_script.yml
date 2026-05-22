@@ -33,23 +33,11 @@ jobs:
         python -m playwright install chromium --with-deps
 
    # 4. 执行所有数据生成脚本，并在最后运行对账和比对脚本
-    # 4.1 抓取 EDQM 数据（独立封装，允许其失败不阻塞后续）
-    - name: Run EDQM Fetch Script
-      id: edqm_step
-      continue-on-error: true  # 核心关键 1：即使它报错，也允许工作流继续往下走
-      run: python zhuaqu.py
-
-    # 4.2 导出 USP 数据（独立执行，完全不吃上一步的排泄）
-    - name: Run USP Fetch Script
-      id: usp_step
-      continue-on-error: true  # 核心关键 2：两强并立，谁崩都不耽误大局
-      run: python daochuusp.py
-
-    # 4.3 强行触发最终的对账与比对汇总报告
-    - name: Exec Cross Check and Mail Generate
-      if: always()             # 核心关键 3：不管上面两个爬虫谁成谁败，最终对账脚本必须强制执行！
-      run: python check_data.py
- # 【全新引入】：读取本地文件与上述三个生成的文件做双列多库交叉比对
+    - name: Run Python script
+      run: |
+        python zhuaqu.py
+        python daochuusp.py
+        python check_data.py # 【全新引入】：读取本地文件与上述三个生成的文件做双列多库交叉比对
 
     # 5. 发送带 3 个 Excel 附件的动态对账邮件到指定的邮箱
     - name: Send Email with Excel Attachment
