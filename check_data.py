@@ -229,7 +229,7 @@ def main():
     # 场景 B：出现品种不匹配，黄底高亮警告！
     if has_missing:
         html_content += '<div class="warning-block">'
-        html_content += '<p><span class="highlight">⚠️ 异常提醒：本地目录中的以下对照品在今日线上最新数据中未找到匹配项：</span></p>'
+        html_content += '<p><span class="highlight">⚠️ 异常提醒：本地目录中的以下对照品在今日线上最新数据中未找到匹配项，请查看今日最新Excel表格数据进行确认：</span></p>'
         
         if missing_chp:
             html_content += '<strong>【国家药品标准物质目录 (ChP)】未匹配：</strong>'
