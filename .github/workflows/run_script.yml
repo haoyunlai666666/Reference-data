@@ -15,11 +15,11 @@ jobs:
     steps:
     # 1. 检出仓库代码（完美同步拿到你后续上传的 现有全部对照品目录.xlsx）
     - name: Checkout repository code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     # 2. 设置 Python 环境
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
         cache: 'pip' # 开启缓存，提升每日运行速度
@@ -32,17 +32,27 @@ jobs:
         pip install curl_cffi requests pandas openpyxl xlrd lxml html5lib
         python -m playwright install chromium --with-deps
 
-   # 4. 执行所有数据生成脚本，并在最后运行对账和比对脚本
-    - name: Run Python script
-      run: |
-        python duibi.py
-        python zhuaqu.py
-        python daochuusp.py
-        python check_data.py # 【全新引入】：读取本地文件与上述三个生成的文件做双列多库交叉比对
+    # 4. 执行所有数据生成脚本，并在最后运行对账和比对脚本
+    - name: 运行对账和比对脚本
+      run: python duibi.py
+      continue-on-error: true # 👈 即使报错，后面的脚本也会继续运行
+
+    - name: 运行抓取脚本
+      run: python zhuaqu.py
+      continue-on-error: true # 👈 即使报错，后面的脚本也会继续运行
+
+    - name: 运行真实目录数据流抓取脚本
+      run: python daochuusp.py
+      continue-on-error: true # 👈 即使报错，后面的脚本也会继续运行
+
+    - name: 运行全新双列多库交叉比对脚本
+      run: python check_data.py # 【全新引入】：读取本地文件与上述三个生成的文件做双列多库交叉比对
+      # 作为核心检测的最后一步，无需加 continue-on-error
+
 
     # 5. 发送带 3 个 Excel 附件的动态对账邮件到指定的邮箱
     - name: Send Email with Excel Attachment
-      uses: dawidd6/action-send-mail@v4
+      uses: dawidd6/action-send-mail@v17
       with:
         server_address: smtp.sina.com
         server_port: 465
