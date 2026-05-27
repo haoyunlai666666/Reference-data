@@ -2,17 +2,10 @@ import os
 import pandas as pd
 
 def clean_string(series):
-    """去除字符串中所有的空格、换行符等，转换为大写，并抹除纯整数浮点数的 .0 尾缀"""
-    # 1. 安全处理：先将空值（NaN）填充为空字符串，并统一强制转化为字符串类型
+    """只去除空格和转大写，绝对不擅自修改用户的数字内容"""
     s_cleaned = series.fillna('').astype(str)
-    
-    # 2. 功能继承：去除所有空格、换行符、两端空格，并统一转为大写
-    s_cleaned = s_cleaned.str.replace(r'\s+', '', regex=True).str.strip().str.upper()
-    
-    # 3. 核心修复：精准消灭纯整数后面的 ".0" 污染（如 "1.0" -> "1"），且绝对不伤及普通文本或复合批号
-    s_cleaned = s_cleaned.str.replace(r'\.0$', '', regex=True)
-    
-    return s_cleaned
+    return s_cleaned.str.replace(r'\s+', '', regex=True).str.strip().str.upper()
+
 
 def main():
     base_file = "现有全部对照品目录.xlsx"
@@ -29,7 +22,7 @@ def main():
     if os.path.exists(base_file) and os.path.exists(chp_file):
         try:
             df_base = pd.read_excel(base_file)
-            df_chp  = pd.read_excel(chp_file)
+            df_chp = pd.read_excel(chp_file, dtype=str)
             
             # 【核心优化】：将线上生成的 ChP 表头所有的空格强制全部删掉，让“幽灵空格”无处遁形！
             df_chp.columns = df_chp.columns.astype(str).str.replace(r'\s+', '', regex=True)
@@ -66,7 +59,7 @@ def main():
     if os.path.exists(base_file) and os.path.exists(edqm_file):
         try:
             df_base = pd.read_excel(base_file)
-            df_edqm = pd.read_excel(edqm_file)
+            df_edqm = pd.read_excel(edqm_file, dtype=str)
             
             df_base_eng = df_base[['对照品英文名称EP', '对照品英文批号EP']].dropna(subset=['对照品英文名称EP']).copy()
             df_base_eng['clean_name'] = clean_string(df_base_eng['对照品英文名称EP'])
@@ -117,7 +110,7 @@ def main():
                 tables = soup.find_all('table')
                 if tables:
                     # 用内存中的干净文本给 pandas 解析
-                    df_usp = pd.read_html(str(tables))[0]
+                    df_usp = pd.read_html(str(tables), dtype=str)[0]
             except Exception:
                 pass
             
@@ -125,7 +118,7 @@ def main():
             if df_usp is None or df_usp.empty:
                 try:
                     # 通过 io.StringIO 将清洗后的纯文本包裹，从而替代物理文件路径输入，防止底层解析器崩溃
-                    dfs = pd.read_html(io.StringIO(clean_html_text), flavor='lxml')
+                    dfs = pd.read_html(io.StringIO(clean_html_text), flavor='lxml', dtype=str)
                     for df in dfs:
                         df_cols_clean = [re.sub(r'\s+', '', str(c)).lower() for c in df.columns.astype(str)]
                         # 嗅探哪个子表格带有产品名关键字
