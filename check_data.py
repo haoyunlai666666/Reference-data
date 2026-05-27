@@ -2,16 +2,17 @@ import os
 import pandas as pd
 
 def clean_string(series):
-    """去除字符串中所有的空格、换行符等，转换为大写"""
-    # 1. 先将 Series 中的空值（NaN）填充为空字符串
-    s_cleaned = series.fillna('')
+    """去除字符串中所有的空格、换行符等，转换为大写，并抹除纯整数浮点数的 .0 尾缀"""
+    # 1. 安全处理：先将空值（NaN）填充为空字符串，并统一强制转化为字符串类型
+    s_cleaned = series.fillna('').astype(str)
     
-    # 2. 核心修复：如果序列中包含 1.0 这种纯整数型的浮点数，先转换为去掉 .0 的整数型字符串；
-    #    如果是普通的字符串（如 "123-456"）或英文，则保持原样，不发生任何改变。
-    s_cleaned = s_cleaned.map(lambda x: str(int(x)) if isinstance(x, (int, float)) and not pd.isna(x) and x == int(x) else str(x))
+    # 2. 功能继承：去除所有空格、换行符、两端空格，并统一转为大写
+    s_cleaned = s_cleaned.str.replace(r'\s+', '', regex=True).str.strip().str.upper()
     
-    # 3. 完美承接您原本的所有功能（正则去除所有空格/换行符、两端去空格、字母转大写）
-    return s_cleaned.str.replace(r'\s+', '', regex=True).str.strip().str.upper()
+    # 3. 核心修复：精准消灭纯整数后面的 ".0" 污染（如 "1.0" -> "1"），且绝对不伤及普通文本或复合批号
+    s_cleaned = s_cleaned.str.replace(r'\.0$', '', regex=True)
+    
+    return s_cleaned
 
 def main():
     base_file = "现有全部对照品目录.xlsx"
