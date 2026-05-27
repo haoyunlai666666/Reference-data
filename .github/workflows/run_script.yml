@@ -33,7 +33,9 @@ jobs:
         python -m playwright install chromium --with-deps
 
     # 4. 执行所有数据生成脚本，并在最后运行对账和比对脚本
-
+    - name: 运行对账和比对脚本
+      run: python duibi.py
+      continue-on-error: true # 👈 即使报错，后面的脚本也会继续运行
 
     - name: 运行抓取脚本
       run: python zhuaqu.py
@@ -57,7 +59,7 @@ jobs:
         username: ${{ secrets.EMAIL_USERNAME }}
         password: ${{ secrets.EMAIL_PASSWORD }}
         subject: "【自动报表】今日药品对照品数据监控及对账单"
-        to: liuliming@kvvit.com
+        to: "liuliming@kvvit.com,jxlgp1@kvvit.com,luoxiuzhen@kvvit.com"
         from: ${{ secrets.EMAIL_USERNAME }}
         # 【关键整改】：不再使用死板的 body，改为动态拉取 check_data.py 生成的带黄色高亮的 HTML 正文
         html_body: file://mail_body.html
