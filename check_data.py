@@ -109,17 +109,22 @@ def main():
                 soup = bs4.BeautifulSoup(clean_html_text, 'lxml')
                 tables = soup.find_all('table')
                 if tables:
-                    # 用内存中的干净文本给 pandas 解析
-                    df_usp = pd.read_html(str(tables), dtype=str)[0]
+                    # 1. 先用纯净的方式让 Pandas 把 HTML 的 <table> 解析出来（此时得到的是 DataFrame 列表）
+                    parsed_tables = pd.read_html(str(tables))
+                    if parsed_tables:
+                        # 2. 取出第一张表格，并在一瞬间将整张表的所有数据类型锁定为纯文本字符串（.astype(str)）
+                        df_usp = parsed_tables[0].astype(str)
             except Exception:
                 pass
             
             # --- 尝试策略 2（降级策略）：如果策略 1 失败，依然用【干净的清洗文本】输入给 pd.read_html ---
             if df_usp is None or df_usp.empty:
                 try:
-                    # 通过 io.StringIO 将清洗后的纯文本包裹，从而替代物理文件路径输入，防止底层解析器崩溃
-                    dfs = pd.read_html(io.StringIO(clean_html_text), flavor='lxml', dtype=str)
+                    # 1. 拿掉不稳定的 dtype=str 参数，确保 read_html 100% 成功执行
+                    dfs = pd.read_html(io.StringIO(clean_html_text), flavor='lxml')
                     for df in dfs:
+                        # 2. 循环遍历提取出 DataFrame 的一瞬间，立刻将其转换为纯文本字符串
+                        df = df.astype(str) 
                         df_cols_clean = [re.sub(r'\s+', '', str(c)).lower() for c in df.columns.astype(str)]
                         # 嗅探哪个子表格带有产品名关键字
                         if any('productname' in c for c in df_cols_clean):
@@ -127,6 +132,9 @@ def main():
                             break
                     if df_usp is None and len(dfs) > 0:
                         df_usp = dfs[0]
+                    # 【核心修正点】：只要最终拿到了表格，在即将退出策略 2 的一瞬间，强制全表转为纯文本字符串！
+                    if df_usp is not None:
+                        df_usp = df_usp.astype(str)
                 except Exception as e:
                     pass
             
