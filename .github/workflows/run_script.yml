@@ -33,9 +33,7 @@ jobs:
         python -m playwright install chromium --with-deps
 
     # 4. 执行所有数据生成脚本，并在最后运行对账和比对脚本
-    - name: 运行对账和比对脚本
-      run: python duibi.py
-      continue-on-error: true # 👈 即使报错，后面的脚本也会继续运行
+
 
     - name: 运行抓取脚本
       run: python zhuaqu.py
