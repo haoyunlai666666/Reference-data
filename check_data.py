@@ -21,7 +21,7 @@ def main():
     # -----------------------------------------------------------------
     if os.path.exists(base_file) and os.path.exists(chp_file):
         try:
-            df_base = pd.read_excel(base_file)
+            df_base = pd.read_excel(base_file, dtype=str)
             df_chp = pd.read_excel(chp_file, dtype=str)
             
             # 【核心优化】：将线上生成的 ChP 表头所有的空格强制全部删掉，让“幽灵空格”无处遁形！
@@ -58,7 +58,7 @@ def main():
     # -----------------------------------------------------------------
     if os.path.exists(base_file) and os.path.exists(edqm_file):
         try:
-            df_base = pd.read_excel(base_file)
+            df_base = pd.read_excel(base_file, dtype=str)
             df_edqm = pd.read_excel(edqm_file, dtype=str)
             
             df_base_eng = df_base[['对照品英文名称EP', '对照品英文批号EP']].dropna(subset=['对照品英文名称EP']).copy()
@@ -85,7 +85,7 @@ def main():
     # -----------------------------------------------------------------
     if os.path.exists(base_file) and os.path.exists(usp_file):
         try:
-            df_base = pd.read_excel(base_file)
+            df_base = pd.read_excel(base_file, dtype=str)
             df_usp = None
             
             import bs4
