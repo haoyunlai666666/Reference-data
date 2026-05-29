@@ -1,0 +1,31 @@
+name: Daily Sync From Render Web
+
+on:
+  schedule:
+    - cron: '16 19 * * *' # 每天北京时间晚上 20:00 自动抓取
+  workflow_dispatch: # 允许你在 GitHub 网页上手动点击按钮测试
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Download Excel from Render
+      run: |
+        # ⚠️ 请把下面这个网址前面的 https://... 换成你真实的 Render 网址！
+        curl -L -o "现有全部对照品目录.xlsx" "https://duizhaopin-excel.onrender.com"
+
+    - name: Commit and Push
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@://github.com"
+        
+        if git diff --quiet "现有全部对照品目录.xlsx"; then
+          echo "No changes found."
+        else
+          git add "现有全部对照品目录.xlsx"
+          git commit -m "Auto updated excel from Render shared web"
+          git push
+        fi
