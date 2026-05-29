@@ -118,7 +118,8 @@ app.post('/upload-to-github', async (req, res) => {
 
     try {
         const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-        const url = `https://github.com{REPO_OWNER}/${REPO_NAME}/contents/${encodeURIComponent(FILE_PATH)}`;
+       const url = "https://github.com" + REPO_OWNER + "/" + REPO_NAME + "/contents/" + encodeURIComponent(FILE_PATH);
+
         
         // 1. 先去查一下 GitHub 上现有文件的 sha 标识（Git覆盖必须要带sha）
         const getRes = await fetch(url, {
