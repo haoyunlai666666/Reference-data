@@ -215,6 +215,16 @@ const htmlContent = `
 
 // 3. 设置路由响应与下载端点
 app.get('/', (req, res) => res.send(htmlContent));
+// 新增的保护开关：如果有人来下载 Excel 却发现根本没有文件，直接报错 404 告诉 GitHub，不要吐出网页源码
+app.get('/%E7%8E%B0%E6%9C%89%E5%85%A8%E9%83%A8%E5%AF%B9%E7%85%A7%E5%93%81%E7%9B%AE%E5%BD%95.xlsx', (req, res, next) => {
+    const fs = require('fs');
+    const filePath = path.join(__dirname, '现有全部对照品目录.xlsx');
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).send('File not uploaded yet');
+    }
+    next();
+});
+
 
 // 托管当前目录下的所有静态文件（允许直接下载生成的 Excel）
 app.use(express.static(__dirname)); 
