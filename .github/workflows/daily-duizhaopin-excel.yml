@@ -2,8 +2,8 @@ name: Daily Sync From Render Web
 
 on:
   schedule:
-    - cron: '16 19 * * *' # 每天北京时间晚上 20:00 自动抓取
-  workflow_dispatch: # 允许你在 GitHub 网页上手动点击按钮测试
+    - cron: '16 17 * * *' # 每天北京时间凌晨 01:16 自动运行
+  workflow_dispatch: # 保持手动点击运行功能
 
 jobs:
   sync:
@@ -14,8 +14,21 @@ jobs:
 
     - name: Download Excel from Render
       run: |
-        # ⚠️ 请把下面这个网址前面的 https://... 换成你真实的 Render 网址！
-        curl -L -o "现有全部对照品目录.xlsx" "https://duizhaopin-excel.onrender.com"
+        # 尝试下载文件，并将网络的响应状态码记录下来
+        STATUS_CODE=$(curl -s -o "现有全部对照品目录.xlsx" -w "%{http_code}" -L "https://duizhaopin-excel.onrender.com")
+        
+        # 判断状态码是否为 200（代表下载成功）
+        if [ "$STATUS_CODE" -ne 200 ]; then
+          echo "=================================================================="
+          echo "❌ 错误提示：网站中没有上传现有对照品目录excel文件！"
+          echo "=================================================================="
+          
+          # 清理可能产生的残缺假文件，确保不污染仓库
+          rm -f "现有全部对照品目录.xlsx"
+          
+          # 强行让脚本以失败状态退出，触发 GitHub 的红叉报警
+          exit 1
+        fi
 
     - name: Commit and Push
       run: |
@@ -23,9 +36,9 @@ jobs:
         git config --global user.email "github-actions[bot]@://github.com"
         
         if git diff --quiet "现有全部对照品目录.xlsx"; then
-          echo "No changes found."
+          echo "No changes found. Skip upload."
         else
           git add "现有全部对照品目录.xlsx"
-          git commit -m "Auto updated excel from Render shared web"
+          git commit -m "Auto updated: 现有全部对照品目录"
           git push
         fi
