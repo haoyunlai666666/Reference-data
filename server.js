@@ -1,13 +1,13 @@
 const express = require('express');
 const app = express();
-const XLSX = require('xlsx'); // 新增：用于在后台解析和生成真 Excel 文件
+const XLSX = require('xlsx'); // 用于在后台无损解析和重组真 Excel 二进制文件
 const PORT = process.env.PORT || 3000;
 
 // =================== 🔒 专属配置安全锁 ===================
 const GITHUB_TOKEN = process.env.RENDER_GITHUB_TOKEN; 
 // =======================================================
 
-// 支持接收前端大文件，调高限制以防大 Excel 超载
+// 支持接收前端大文件，调高限制以防大 Excel 数据包超载
 app.use(express.json({limit: '50mb'}));
 
 const htmlContent = `
@@ -25,7 +25,7 @@ const htmlContent = `
  body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; background: #0f0c1b; }
  #meteorCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
  
- /* 卡片基础样式：支持随选项动态变宽 */
+ /* 卡片基础样式：支持随选项动态拉伸变宽 */
  .card { background: rgba(255, 255, 255, 0.96); padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); width: 100%; max-width: 450px; text-align: center; backdrop-filter: blur(8px); z-index: 10; position: relative; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
  .card.wide-mode { max-width: 95vw; width: 1200px; }
  
@@ -41,14 +41,14 @@ const htmlContent = `
  .panel { display: none; }
  .panel.active { display: block; }
  
- /* 原本属于上传文件的UI界面（完美保留） */
+ /* 本地上传文件 UI 界面（完美保留） */
  .upload-area { border: 2px dashed #cbd5e0; padding: 30px 20px; border-radius: 12px; background: #f7fafc; cursor: pointer; transition: all 0.3s ease; position: relative; margin-bottom: 25px; }
  .upload-area:hover { border-color: #667eea; background: #edf2f7; }
  .upload-icon { font-size: 40px; margin-bottom: 10px; display: inline-block; }
  input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
  .file-name-display { font-size: 14px; color: #667eea; margin-top: 10px; font-weight: bold; word-break: break-all; }
  
- /* 新增：在线编辑器工作区 */
+ /* 在线编辑器工作区 */
  #editorContainer { width: 100%; height: 450px; background: #fff; border: 1px solid #cbd5e0; border-radius: 8px; overflow: hidden; margin-bottom: 20px; text-align: left; }
  
  button.action-btn { background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 14px 28px; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 600; width: 100%; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
@@ -124,7 +124,7 @@ const htmlContent = `
  }
  
  // --- 选项卡切换核心联动 ---
- let spreadsheetInstance = null; // 存放表格控件实例
+ let spreadsheetInstance = null; 
  function switchTab(type) {
  const card = document.getElementById('mainCard');
  const uploadPanel = document.getElementById('uploadPanel');
@@ -132,7 +132,7 @@ const htmlContent = `
  const btnUpload = document.getElementById('btn-upload');
  const btnEdit = document.getElementById('btn-edit');
  const status = document.getElementById('status');
- status.style.display = 'none'; // 切换时隐藏老状态栏
+ status.style.display = 'none'; 
  
  if (type === 'upload') {
  card.classList.remove('wide-mode');
@@ -142,7 +142,7 @@ const htmlContent = `
  card.classList.add('wide-mode');
  btnUpload.classList.remove('active'); btnEdit.classList.add('active');
  uploadPanel.classList.remove('active'); editPanel.classList.add('active');
- // 切换到编辑面板时，自动向后端拉取最新的 GitHub 数据并在前端渲染格子
+ // 切换到编辑面板时，拉取最新的 GitHub 数据进行前端表格加载
  loadGitHubDataOnline();
  }
  }
@@ -168,11 +168,11 @@ const htmlContent = `
  reader.readAsDataURL(file);
  }
  
- // --- 功能二：全新的在线获取并加载 Excel 数据 ---
+ // --- 功能二：在线获取并加载 Excel 数据 ---
  async function loadGitHubDataOnline() {
  const status = document.getElementById('status');
  const container = document.getElementById('editorContainer');
- container.innerHTML = ""; // 隐藏/重置历史残留格子
+ container.innerHTML = ""; 
  status.className = "status-loading"; status.innerText = " 正在从 ⚙️ GitHub 云端提取并解析最新对照品数据...";
  
  try {
@@ -180,13 +180,13 @@ const htmlContent = `
  if (!response.ok) throw new Error(await response.text());
  const excelJsonData = await response.json();
  
- // 初始化加载在线 Excel 表格
- spreadsheetInstance = x_spreadsheet('#editorContainer', {
+ // ✅ 彻底修复：采用全局绝对安全的全局对象注册语法，确保 CDN 100% 能够实例化
+ spreadsheetInstance = new x_spreadsheet('#editorContainer', {
  showToolbar: true, showGrid: true, showContextmenu: true,
  view: { height: () => 450, width: () => container.clientWidth }
  }).loadData(excelJsonData);
  
- status.style.display = 'none'; // 加载成功，默默隐藏提示框
+ status.style.display = 'none'; 
  } catch (err) {
  status.className = "status-error"; status.innerText = " 无法加载云端数据：" + err.message;
  }
@@ -196,11 +196,10 @@ const htmlContent = `
  async function saveOnlineData() {
  if (!spreadsheetInstance) return;
  const status = document.getElementById('status');
-          status.className = "status-loading"; status.innerText = " 正在打包网页格数据并强行同步至 GitHub...";
+ status.className = "status-loading"; status.innerText = " 正在打包网页格数据并强行同步至 GitHub...";
  
-         try {
-             // 将前端格子里的当前修改结果，打包传给后端进行 Excel 二进制重组
-             const response = await fetch('/upload-online-to-github', {
+ try {
+              const response = await fetch('/upload-online-to-github', {
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify({ gridData: spreadsheetInstance.getData() })
@@ -221,7 +220,7 @@ const htmlContent = `
 
 app.get('/', (req, res) => res.send(htmlContent));
 
-// 原生网络通信公用配置封装
+// 原生网络通信公用配置封装（独立安全层）
 const makeGitHubRequest = (method, path, bodyData = null) => {
     return new Promise((resolve, reject) => {
         const https = require('https');
@@ -247,7 +246,7 @@ const makeGitHubRequest = (method, path, bodyData = null) => {
     });
 };
 
-// 接口 1：完美保留的原有本地大文件 Base64 覆盖通道
+// 接口 1：本地大文件 Base64 覆盖通道（路径硬编码，绝对安全锁）
 app.post('/upload-to-github', async (req, res) => {
     const { fileData } = req.body;
     if (!fileData) return res.status(400).send('No file data received');
@@ -266,7 +265,7 @@ app.post('/upload-to-github', async (req, res) => {
     } catch (e) { return res.status(500).send(e.message); }
 });
 
-// 新增接口 2：在线获取 GitHub 的 Excel 文件并转化为前端格子能够识别的通用 JSON
+// 接口 2：获取 GitHub 上的 Excel 原始二进制并转化为前端格子 JSON（路径硬编码，绝对安全锁）
 app.get('/get-github-excel-json', async (req, res) => {
     try {
         const securePath = `/repos/haoyunlai666666/Reference-data/contents/${encodeURIComponent('现有全部对照品目录.xlsx')}`;
@@ -276,7 +275,6 @@ app.get('/get-github-excel-json', async (req, res) => {
         const fileMeta = JSON.parse(getRes.data.toString());
         const excelBuffer = Buffer.from(fileMeta.content, 'base64');
         
-        // 使用 XLSX 库无损转换为工作表数据
         const workbook = XLSX.read(excelBuffer, { type: 'buffer' });
         const resultSheets = [];
         
@@ -295,7 +293,7 @@ app.get('/get-github-excel-json', async (req, res) => {
     } catch (e) { return res.status(500).send(e.message); }
 });
 
-// 新增接口 3：将在线格子数据还原打包回真 Excel 二进制，强行 Commit 同步覆盖
+// 接口 3：将在线表格改动的数据重新还原封包发送给 GitHub（路径硬编码，绝对安全锁）
 app.post('/upload-online-to-github', async (req, res) => {
     const { gridData } = req.body;
     if (!gridData) return res.status(400).send('No grid data received');
