@@ -18,8 +18,8 @@ const htmlContent = `
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <title>对照品目录管理系统</title>
  <!-- 引入网页版 Excel 控件的核心样式与脚本 -->
- <link rel="stylesheet" href="https://unpkg.com">
- <script src="https://unpkg.com"></script>
+ <link rel="stylesheet" href="https://unpkg.com/x-data-spreadsheet@1.1.9/dist/xspreadsheet.css">
+ <script src="https://unpkg.com/x-data-spreadsheet@1.1.9/dist/xspreadsheet.js"></script>
  <style>
  * { box-sizing: border-box; margin: 0; padding: 0; }
  body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; background: #0f0c1b; }
