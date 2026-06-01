@@ -132,7 +132,9 @@ const htmlContent = `
  const btnUpload = document.getElementById('btn-upload');
  const btnEdit = document.getElementById('btn-edit');
  const status = document.getElementById('status');
- status.style.display = 'none'; 
+ // ✅ 修复：清除状态栏的所有类名，破除 !important 的强制显示效果
+ status.className = ""; 
+ status.style.display = 'none';
  
  if (type === 'upload') {
  card.classList.remove('wide-mode');
@@ -280,12 +282,29 @@ app.get('/get-github-excel-json', async (req, res) => {
             const sheet = workbook.Sheets[name];
             const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
             const rows = {};
+            const cols = {}; // ✅ 新增：用于记录每列的最大宽度
+            
             json.forEach((r, rIdx) => {
                 const cells = {};
-                r.forEach((c, cIdx) => { cells[cIdx] = { text: c }; });
+                r.forEach((c, cIdx) => {
+                    // 确保内容转为字符串处理
+                    const text = c !== undefined && c !== null ? String(c) : "";
+                    cells[cIdx] = { text: text };
+                    
+                    // ✅ 计算字符大概的像素宽度（中文按两倍宽度计算）
+                    const charLen = text.replace(/[\u0391-\uFFE5]/g, "aa").length;
+                    // 基础宽度 100，每个字符约 8 像素，外加 16 像素边距；限制最大列宽为 500px 防止过长
+                    const estimatedWidth = Math.min(Math.max(100, charLen * 8 + 16), 500);
+                    
+                    // 比较并记录该列的最大宽度
+                    if (!cols[cIdx] || estimatedWidth > cols[cIdx].width) {
+                        cols[cIdx] = { width: estimatedWidth };
+                    }
+                });
                 rows[rIdx] = { cells };
             });
-            resultSheets.push({ name: name, rows: rows });
+            // ✅ 将 cols 对象一并推送到前端
+            resultSheets.push({ name: name, rows: rows, cols: cols });
         });
         return res.json(resultSheets.length ? resultSheets : [{ name: "Sheet1", rows: {} }]);
     } catch (e) { return res.status(500).send(e.message); }
