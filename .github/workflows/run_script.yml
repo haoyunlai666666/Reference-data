@@ -3,6 +3,9 @@ name: Daily Python Script Execution
 on:
   push:
     branches: [ "main" ] # 每次提交代码时触发
+    # 核心修订：只要以下列出的文件发生变动，绝对不会触发此工作流
+    paths-ignore:
+      - '现有全部对照品目录.xlsx'
   workflow_dispatch: # 允许你在网页上点击按钮手动触发测试
   schedule:
     # 每天固定的标准时间 (UTC) 00:00 运行（对应北京时间早上 08:00）
