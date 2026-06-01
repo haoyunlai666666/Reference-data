@@ -3,7 +3,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // =================== 🔒 专属配置安全锁 ===================
-const GITHUB_TOKEN = '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'; 
+// ✅ 已经修复：安全改用环境变量读取。再也不怕代码推送到公开仓库被 GitHub 官方秒删了！
+const GITHUB_TOKEN = process.env.RENDER_GITHUB_TOKEN; 
 // =======================================================
 
 // 支持接收前端大文件
