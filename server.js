@@ -226,7 +226,7 @@ const makeGitHubRequest = (method, path, bodyData = null) => {
     return new Promise((resolve, reject) => {
         const https = require('https');
         const options = {
-            hostname: 'api.github.com',
+            hostname: '://github.com',
             path: path,
             method: method,
             headers: {
@@ -252,9 +252,7 @@ app.post('/upload-to-github', async (req, res) => {
     const { fileData } = req.body;
     if (!fileData) return res.status(400).send('No file data received');
     try {
-        // 🔒 直接锁死安全硬编码路径
         const securePath = `/repos/haoyunlai666666/Reference-data/contents/${encodeURIComponent('现有全部对照品目录.xlsx')}`;
-        
         const getRes = await makeGitHubRequest('GET', securePath);
         let sha = null;
         if (getRes.status === 200) sha = JSON.parse(getRes.data.toString()).sha;
@@ -271,9 +269,7 @@ app.post('/upload-to-github', async (req, res) => {
 // 新增接口 2：在线获取 GitHub 的 Excel 文件并转化为前端格子能够识别的通用 JSON
 app.get('/get-github-excel-json', async (req, res) => {
     try {
-        // 🔒 直接锁死安全硬编码路径，杜绝空变量解析引发域名报错
         const securePath = `/repos/haoyunlai666666/Reference-data/contents/${encodeURIComponent('现有全部对照品目录.xlsx')}`;
-        
         const getRes = await makeGitHubRequest('GET', securePath);
         if (getRes.status !== 200) return res.status(getRes.status).send("无法在仓库中找到对应的核心 Excel 文件");
         
@@ -286,7 +282,6 @@ app.get('/get-github-excel-json', async (req, res) => {
         
         workbook.SheetNames.forEach(name => {
             const sheet = workbook.Sheets[name];
-            // 将真 Excel 转换为前端表格兼容的轻量矩阵结构
             const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
             const rows = {};
             json.forEach((r, rIdx) => {
@@ -305,7 +300,6 @@ app.post('/upload-online-to-github', async (req, res) => {
     const { gridData } = req.body;
     if (!gridData) return res.status(400).send('No grid data received');
     try {
-        // 创建一个全新的真 Excel 内存空表
         const workbook = XLSX.utils.book_new();
         
         gridData.forEach(sheetData => {
@@ -326,13 +320,10 @@ app.post('/upload-online-to-github', async (req, res) => {
             XLSX.utils.book_append_sheet(workbook, ws, sheetData.name || "Sheet1");
         });
         
-        // 输出为二进制流数据并进行 Base64 编码
         const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
         const base64Data = excelBuffer.toString('base64');
 
-        // 🔒 直接锁死安全硬编码路径
         const securePath = `/repos/haoyunlai666666/Reference-data/contents/${encodeURIComponent('现有全部对照品目录.xlsx')}`;
-
         const getRes = await makeGitHubRequest('GET', securePath);
         let sha = null;
         if (getRes.status === 200) sha = JSON.parse(getRes.data.toString()).sha;
