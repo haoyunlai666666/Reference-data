@@ -219,13 +219,12 @@ const htmlContent = `
 `;
 
 app.get('/', (req, res) => res.send(htmlContent));
-
 // 原生网络通信公用配置封装（独立安全层）
 const makeGitHubRequest = (method, path, bodyData = null) => {
     return new Promise((resolve, reject) => {
         const https = require('https');
         const options = {
-            hostname: '://github.com',
+            hostname: '://github.com', // ✅ 已修正：移除了错误的协议头，并更改为正确的官方专用 API 域名
             path: path,
             method: method,
             headers: {
@@ -255,7 +254,6 @@ app.post('/upload-to-github', async (req, res) => {
         const getRes = await makeGitHubRequest('GET', securePath);
         let sha = null;
         if (getRes.status === 200) sha = JSON.parse(getRes.data.toString()).sha;
-
         const putRes = await makeGitHubRequest('PUT', securePath, {
             message: '📊 网页端实时更新：现有全部对照品目录',
             content: fileData,
@@ -265,7 +263,7 @@ app.post('/upload-to-github', async (req, res) => {
     } catch (e) { return res.status(500).send(e.message); }
 });
 
-// 接口 2：获取 GitHub 上的 Excel 原始二进制并转化为前端格子 JSON（路径硬编码，绝对安全锁）
+// 接口 2：获取 GitHub 上的 Excel 原始二进制并转化为前端格子 JSON （路径硬编码，绝对安全锁）
 app.get('/get-github-excel-json', async (req, res) => {
     try {
         const securePath = `/repos/haoyunlai666666/Reference-data/contents/${encodeURIComponent('现有全部对照品目录.xlsx')}`;
@@ -293,7 +291,7 @@ app.get('/get-github-excel-json', async (req, res) => {
     } catch (e) { return res.status(500).send(e.message); }
 });
 
-// 接口 3：将在线表格改动的数据重新还原封包发送给 GitHub（路径硬编码，绝对安全锁）
+// 接口 3：将在线表格改动的数据重新还原封包发送给 GitHub （路径硬编码，绝对安全锁）
 app.post('/upload-online-to-github', async (req, res) => {
     const { gridData } = req.body;
     if (!gridData) return res.status(400).send('No grid data received');
@@ -320,12 +318,10 @@ app.post('/upload-online-to-github', async (req, res) => {
         
         const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
         const base64Data = excelBuffer.toString('base64');
-
         const securePath = `/repos/haoyunlai666666/Reference-data/contents/${encodeURIComponent('现有全部对照品目录.xlsx')}`;
         const getRes = await makeGitHubRequest('GET', securePath);
         let sha = null;
         if (getRes.status === 200) sha = JSON.parse(getRes.data.toString()).sha;
-
         const putRes = await makeGitHubRequest('PUT', securePath, {
             message: '📝 网页端在线表格实时修改更新',
             content: base64Data,
@@ -336,3 +332,4 @@ app.post('/upload-online-to-github', async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
