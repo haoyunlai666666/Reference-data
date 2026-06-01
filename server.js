@@ -224,7 +224,7 @@ const makeGitHubRequest = (method, path, bodyData = null) => {
     return new Promise((resolve, reject) => {
         const https = require('https');
         const options = {
-            hostname: '://github.com', // ✅ 已修正：移除了错误的协议头，并更改为正确的官方专用 API 域名
+            hostname: 'api.github.com', // ✅ 真正修正：纯净无暇的官方专用 API 域名，绝无任何 :// 符号
             path: path,
             method: method,
             headers: {
@@ -332,4 +332,5 @@ app.post('/upload-online-to-github', async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
 
