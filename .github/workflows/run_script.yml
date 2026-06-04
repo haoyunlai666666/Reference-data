@@ -52,8 +52,19 @@ jobs:
       run: python check_data.py # 【全新引入】：读取本地文件与上述三个生成的文件做双列多库交叉比对
       # 作为核心检测的最后一步，无需加 continue-on-error
 
+    # 5.重命名并设置 output
+    - name: Get Current Date and Rename Files
+      id: rename_files  # 💡 必须设置 id，下一步需要用它来引用
+      run: |
+        DATE=$(date +'%Y%m%d')
+        mv "国家药品标准物质目录_全量在售.xlsx" "国家药品标准物质目录_全量在售_${DATE}.xlsx"
+        mv "EDQM_Catalog_Output.xlsx" "EDQM_Catalog_Output_${DATE}.xlsx"
+        mv "usprefstd.xls" "usprefstd_${DATE}.xls"
+        
+        # 💡 注意：这里写入 $GITHUB_OUTPUT
+        echo "files=国家药品标准物质目录_全量在售_${DATE}.xlsx,EDQM_Catalog_Output_${DATE}.xlsx,usprefstd_${DATE}.xls" >> $GITHUB_OUTPUT
 
-    # 5. 发送带 3 个 Excel 附件的动态对账邮件到指定的邮箱
+    # 6. 发送带 3 个 Excel 附件的动态对账邮件到指定的邮箱
     - name: Send Email with Excel Attachment
       uses: dawidd6/action-send-mail@v17
       with:
@@ -66,4 +77,5 @@ jobs:
         from: ${{ secrets.EMAIL_USERNAME }}
         # 【关键整改】：不再使用死板的 body，改为动态拉取 check_data.py 生成的带黄色高亮的 HTML 正文
         html_body: file://mail_body.html
-        attachments: "国家药品标准物质目录_全量在售.xlsx,EDQM_Catalog_Output.xlsx,usprefstd.xls"
+        # 💡 完美解决：直接通过 steps 语法读取，编译检查绝对不会报错
+        attachments: ${{ steps.rename_files.outputs.files }}
