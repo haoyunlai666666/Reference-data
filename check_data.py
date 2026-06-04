@@ -239,7 +239,7 @@ def main():
     # 场景 B：出现品种不匹配，黄底高亮警告！
     if has_missing:
         html_content += '<div class="warning-block">'
-        html_content += '<p><span class="highlight">⚠️ 异常提醒：以下对照品在今日最新官网数据中未找到匹配项，可能已下架或失效。请查看今日邮件的附件Excel表格数据或登录官网进行确认：</span></p>'
+        html_content += '<p><span class="highlight">⚠️ 异常提醒：以下对照品可能已下架或失效。请查看今日邮件的附件Excel表格数据或登录官网进行确认：</span></p>'
         
         if missing_chp:
             html_content += '<strong>【国家药品标准物质目录 (ChP)】未匹配：</strong>'
@@ -254,7 +254,7 @@ def main():
         
     # 场景 C：完美对账无异常
     if not has_missing and not has_error:
-        html_content += '<p style="color: green; font-weight: bold; font-size: 16px;">✅ 今日核对结果：本地清单中的所有对照品信息（品名/批号）与三大药典最新官网数据均完全一致，未发现失效或下架品种。</p>'
+        html_content += '<p style="color: green; font-weight: bold; font-size: 16px;">✅ 今日核对结果：所有正在使用的对照品信息（品名/批号）与三大药典最新官网数据均完全一致，未发现失效或下架品种。</p>'
         
     html_content += "<br><p>祝好，<br>自动化对账监控系统</p></body></html>"
     
