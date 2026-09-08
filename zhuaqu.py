@@ -23,7 +23,7 @@ if __name__ == "__main__":
         retry_count += 1
         print(f"\n==================== 开始第 {retry_count} 次运行脚本 ====================")
         
-        # 每次循环初始化一个新的网络会话
+        # 每次循环独立新建网络会话
         session = requests.Session()
 
         try:
@@ -171,7 +171,7 @@ if __name__ == "__main__":
             df_pdf[ref_col_name] = df_pdf[ref_col_name].fillna("").str.strip().str.upper()
 
             df_pdf = df_pdf[df_pdf['Order Code'].str.strip() != ""]
-            print(f"PDF 彻底切分完成！共提取到一品一行的独立对照品主数据 {len(df_pdf)} 条。")
+            print(f"PDF 彻底切分完成！产品数据行数已完美释放，共提取到一品一行的独立对照品主数据 {len(df_pdf)} 条。")
 
             # ==========================================
             # 步骤 4：核心跨表智能比对与字段合并
@@ -207,7 +207,13 @@ if __name__ == "__main__":
             # 步骤 5：导出 Excel 文件并渲染自适应列宽
             # ==========================================
             print("\n[5/5] 正在导出并配置 Excel 全局列宽自适应...")
-            df_pdf.to_excel(excel_filename, index=False, engine='openpyxl')
+            excel_filename = "EDQM_Catalog_Output.xlsx"
+
+            try:
+                df_pdf.to_excel(excel_filename, index=False, engine='openpyxl')
+            except PermissionError:
+                print(f"\n [ 致 命 错 误 ]: 无 法 写 入 文 件 ！ 请 立 即 关 闭 电 脑 上 正 在 打 开 的 '{excel_filename}' 后重新运行脚本！")
+                raise
 
             wb = load_workbook(excel_filename)
             ws = wb.active
@@ -234,10 +240,10 @@ if __name__ == "__main__":
             wb.save(excel_filename)
 
         except Exception as e:
-            print(f"[警告] 抓取/处理过程发生错误: {e}")
+            print(f"[警告] 运行过程发生错误: {e}")
 
         # ==========================================
-        # 文件大小校验逻辑 (>= 156KB)
+        # 校验生成文件的大小 (需 >= 156KB)
         # ==========================================
         if os.path.exists(target_file):
             file_size = os.path.getsize(target_file)
