@@ -22,6 +22,7 @@ session = requests.Session()
 # ==========================================
 print("\n[1/5] 正在安全穿透第一个网页，定位并流式下载 PDF 目录...")
 # 严格、百分之百使用您提供的第一个网址，绝不简化、修改或截断任何一个字母
+def run_pipeline():
 url_page1 = "https://crs.edqm.eu/"
 pdf_filename = "web_catalog.pdf"
 
@@ -247,4 +248,50 @@ for col in ws.columns:
         ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
 
 wb.save(excel_filename)
-print(f" 自动化操作全部圆满成功！已为您生成全首列为 Order Code】、全一品一行】的完美规范 Excel 文件：{excel_filename}")
+if __name__ == "__main__":
+    target_file = "EDQM_Catalog_Output.xlsx"
+    min_size_bytes = 156 * 1024  # 156KB 转换为字节数
+    max_retries = 5  # 最大重试次数
+    retry_count = 0
+
+    while retry_count < max_retries:
+        retry_count += 1
+        print(
+            f"\n==================== 开始第 {retry_count} 次运行脚本"
+            " ===================="
+        )
+
+        try:
+            run_pipeline()
+        except Exception as e:
+            print(f"[警告] 抓取过程发生错误: {e}")
+
+        # 检查生成的文件大小
+        if os.path.exists(target_file):
+            file_size = os.path.getsize(target_file)
+            size_kb = file_size / 1024
+            print(
+                f"\n[文件大小检查] 当前文件大小为: {size_kb:.2f} KB"
+                f" ({file_size} 字节)"
+            )
+
+            if file_size >= min_size_bytes:
+                print(
+                    "校验通过：文件大于等于 156KB，说明已完整下载！程序结束。"
+                )
+                break
+            else:
+                print(
+                    "[警告] 文件小于"
+                    " 156KB，说明未完全下载。10秒后自动重新运行..."
+                )
+                time.sleep(10)
+        else:
+            print("[警告] 未能成功生成 Excel 文件，10秒后重新运行...")
+            time.sleep(10)
+    else:
+        print(
+            f"\n已达到最大重试次数 ({max_retries}"
+            " 次)，脚本终止执行。请检查网络或目标网站。"
+        )
+
