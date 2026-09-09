@@ -79,3 +79,7 @@ jobs:
         html_body: file://mail_body.html
         # 💡 完美解决：直接通过 steps 语法读取，编译检查绝对不会报错
         attachments: ${{ steps.rename_files.outputs.files }}
+        # 1. 60 秒无响应立刻断开连接
+        connection_timeout: 60000
+        # 2. 断开后最多自动重试 5 次，防止偶发网络波动导致失败
+        retry_limit: 5
