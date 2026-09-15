@@ -77,7 +77,7 @@ def scrape_all_stop_notices():
     print(f"\n 正在调用浏览器模块，切入公告主页：{NOTICE_INDEX_URL}")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent=HEADERS["User-Agent"], viewport={"width": 1440, "height": 900})
+        context = browser.new_context(user_agent=HEADERS["User-Agent"],viewport={"width": 1440, "height": 900},ignore_https_errors=True)
         page = context.new_page()
         page.goto(NOTICE_INDEX_URL, timeout=40000)
         page.wait_for_timeout(3000)
