@@ -56,13 +56,49 @@ jobs:
     - name: Get Current Date and Rename Files
       id: rename_files  # 💡 必须设置 id，下一步需要用它来引用
       run: |
+        echo "=== 当前工作目录下的所有文件列表 ==="
+        ls -la
+        echo "=================================="
+
         DATE=$(date +'%Y%m%d')
-        mv "国家药品标准物质目录_全量在售.xlsx" "国家药品标准物质目录_全量在售_${DATE}.xlsx"
-        mv "EDQM_Catalog_Output.xlsx" "EDQM_Catalog_Output_${DATE}.xlsx"
-        mv "usprefstd.xls" "usprefstd_${DATE}.xls"
-        
-        # 💡 注意：这里写入 $GITHUB_OUTPUT
-        echo "files=国家药品标准物质目录_全量在售_${DATE}.xlsx,EDQM_Catalog_Output_${DATE}.xlsx,usprefstd_${DATE}.xls" >> $GITHUB_OUTPUT
+        ATTACH_FILES=""
+
+        # 1. 安全处理：国家药品标准物质目录
+        MATCH_NIFDC=$(ls 国家药品标准物质目录_*.xlsx 2>/dev/null | grep -v "_[0-9]\{8\}\.xlsx$" | head -n 1 || true)
+        if [ -n "$MATCH_NIFDC" ]; then
+          TARGET_NIFDC="国家药品标准物质目录_全量在售_${DATE}.xlsx"
+          mv "$MATCH_NIFDC" "$TARGET_NIFDC"
+          ATTACH_FILES="${ATTACH_FILES:+$ATTACH_FILES,}$TARGET_NIFDC"
+          echo "成功重命名: $MATCH_NIFDC -> $TARGET_NIFDC"
+        else
+          echo "[警告] 未找到国家药品标准物质目录文件！"
+        fi
+
+        # 2. 安全处理：EDQM Catalog
+        MATCH_EDQM=$(ls EDQM_Catalog_*.xlsx EDQM_Catalog_Output.xlsx 2>/dev/null | grep -v "_[0-9]\{8\}\.xlsx$" | head -n 1 || true)
+        if [ -n "$MATCH_EDQM" ]; then
+          TARGET_EDQM="EDQM_Catalog_Output_${DATE}.xlsx"
+          mv "$MATCH_EDQM" "$TARGET_EDQM"
+          ATTACH_FILES="${ATTACH_FILES:+$ATTACH_FILES,}$TARGET_EDQM"
+          echo "成功重命名: $MATCH_EDQM -> $TARGET_EDQM"
+        else
+          echo "[警告] 未找到 EDQM 文件！"
+        fi
+
+        # 3. 安全处理：USP 目录
+        MATCH_USP=$(ls usprefstd*.xls 2>/dev/null | grep -v "_[0-9]\{8\}\.xls$" | head -n 1 || true)
+        if [ -n "$MATCH_USP" ]; then
+          TARGET_USP="usprefstd_${DATE}.xls"
+          mv "$MATCH_USP" "$TARGET_USP"
+          ATTACH_FILES="${ATTACH_FILES:+$ATTACH_FILES,}$TARGET_USP"
+          echo "成功重命名: $MATCH_USP -> $TARGET_USP"
+        else
+          echo "[警告] 未找到 USP 文件！"
+        fi
+
+        # 4. 动态把成功生成并重命名的文件写入 GITHUB_OUTPUT
+        echo "最终发送邮件的附件列表为: $ATTACH_FILES"
+        echo "files=$ATTACH_FILES" >> $GITHUB_OUTPUT
 
     # 6. 发送带 3 个 Excel 附件的动态对账邮件到指定的邮箱
     - name: Send Email with Excel Attachment
