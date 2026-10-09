@@ -11,17 +11,17 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 # ================= 严格定义所有网址，绝不精简 =================
 # 目录抓取部分
-REFERER_URL = "http://aoc.nifdc.org.cn/sell/home/search.html"
-API_URL = "http://aoc.nifdc.org.cn/sell/sgoodsQuerywaiw.do?formAction=queryZongList"
+REFERER_URL = "http://aoc.nidc.org.cn/sell/home/search.html"
+API_URL = "http://aoc.nidc.org.cn/sell/sgoodsQuerywaiw.do?formAction=queryZongList"
 # 停用通知公告部分
-NOTICE_INDEX_URL = "https://www.nifdc.org.cn/nifdc/bshff/bzhwzh/index.html"
+NOTICE_INDEX_URL = "https://www.nidc.org.cn/bshff/bzhwzh/bzwztzgg/index.html"
 # ================= ============================================
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "zh-CN,zh;q=0.9",
-    "Origin": "http://aoc.nifdc.org.cn/sell/home/search.html",
+    "Origin": "http://aoc.nidc.org.cn/sell/home/search.html",
     "Referer": REFERER_URL,
     "Content-Type": "application/x-www-form-urlencoded"
 }
