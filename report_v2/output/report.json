@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-11-12T19:37:32.965507+08:00",
+  "date": "20261112",
+  "status": "warning",
+  "run_id": "43201377756",
+  "run_url": "https://github.com/haoyunlai666666/Reference-data/actions/runs/43201377756",
+  "artifact_name": "reference-excels",
+  "report_url": "https://reference-data.onrender.com/report?key=rep-9sgg-my4v-wq5e",
+  "summary": {
+    "status": "warning",
+    "error_total": 0,
+    "missing_total": 0,
+    "skipped_total": 2,
+    "log_error_total": 0
+  },
+  "sources": {
+    "chp": {
+      "label": "国家药品标准物质目录 (ChP)",
+      "ok": true,
+      "skipped": false,
+      "note": "",
+      "source_file": "国家药品标准物质目录_全量在售.xlsx",
+      "source_exists": true,
+      "checked": 13,
+      "catalog_rows": 5949,
+      "missing": [],
+      "error": ""
+    },
+    "edqm": {
+      "label": "EDQM 欧洲药典",
+      "ok": true,
+      "skipped": true,
+      "note": "基准表该库的名称/批号列为空，本次未执行实际比对",
+      "source_file": "EDQM_Catalog_Output.xlsx",
+      "source_exists": true,
+      "checked": 0,
+      "catalog_rows": 3289,
+      "missing": [],
+      "error": ""
+    },
+    "usp": {
+      "label": "USP 美国药典",
+      "ok": true,
+      "skipped": true,
+      "note": "基准表该库的名称/批号列为空，本次未执行实际比对",
+      "source_file": "usprefstd.xls",
+      "source_exists": true,
+      "checked": 0,
+      "catalog_rows": 6416,
+      "missing": [],
+      "error": ""
+    }
+  },
+  "files": [
+    {
+      "key": "chp",
+      "label": "国家药品标准物质目录 (ChP)",
+      "filename": "chp_20261112.xlsx",
+      "size_bytes": 317640
+    },
+    {
+      "key": "edqm",
+      "label": "EDQM 欧洲药典",
+      "filename": "edqm_20261112.xlsx",
+      "size_bytes": 203666
+    },
+    {
+      "key": "usp",
+      "label": "USP 美国药典",
+      "filename": "usp_20261112.xls",
+      "size_bytes": 14820761
+    }
+  ],
+  "log_errors": []
+}
