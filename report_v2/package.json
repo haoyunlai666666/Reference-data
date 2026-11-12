@@ -1,0 +1,1 @@
+{"name":"reference-report-v2","version":"1.0.0","private":true,"description":"对照品对账查询网页与钉钉通知服务","main":"report_server.js","scripts":{"start":"node report_server.js"},"dependencies":{"adm-zip":"^0.5.16","express":"^4.19.2"}}
