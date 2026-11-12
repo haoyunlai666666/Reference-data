@@ -1,0 +1,109 @@
+name: 对照品对账 V2（钉钉 + 查询网页）
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'   # UTC 00:00 = 北京时间 08:00
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: report-v2
+  cancel-in-progress: false
+
+jobs:
+  build-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖与浏览器
+        run: |
+          set -o pipefail
+          mkdir -p report_v2/output/files report_v2/output/logs
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install curl_cffi pdfplumber lxml html5lib openpyxl xlrd beautifulsoup4 pandas requests tenacity playwright
+          python -m playwright install chromium --with-deps
+
+      - name: 抓取中检院目录
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python duibi.py 2>&1 | tee report_v2/output/logs/01_duibi.log
+
+      - name: 抓取 EDQM 目录
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python zhuaqu.py 2>&1 | tee report_v2/output/logs/02_zhuaqu.log
+
+      - name: 抓取 USP 目录
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python daochuusp.py 2>&1 | tee report_v2/output/logs/03_daochuusp.log
+
+      - name: 生成结构化报告与钉钉正文
+        if: always()
+        env:
+          REPORT_URL: ${{ vars.REPORT_URL }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -o pipefail
+          python report_v2/build_report.py 2>&1 | tee report_v2/output/logs/04_build_report.log
+
+      - name: 报告生成兜底
+        if: always()
+        run: |
+          if [ ! -f report_v2/output/dingtalk.md ]; then
+            printf '%s\n' '## 对照品对账日报' '' '**结论：🚨 报告生成脚本异常，未产出对账结果**' '' '请查看本次运行日志。' > report_v2/output/dingtalk.md
+          fi
+
+      - name: 提交报告数据到仓库
+        if: always()
+        run: |
+          if [ ! -f report_v2/output/report.json ]; then
+            echo "报告文件未生成，跳过提交"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f report_v2/output/report.json
+          if git diff --staged --quiet; then
+            echo "报告数据无变更，跳过提交"
+          else
+            git commit -m "更新对照品对账报告数据"
+            git push
+          fi
+
+      - name: 发送钉钉通知
+        if: always()
+        env:
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
+        run: |
+          set -o pipefail
+          python report_v2/dingtalk_notify.py 2>&1 | tee report_v2/output/logs/05_notify.log
+
+      - name: 上传原始 Excel 与日志（保留 7 天）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-excels
+          path: |
+            report_v2/output/files/
+            report_v2/output/logs/
+            report_v2/output/notify_status.json
+            report_v2/output/dingtalk.md
+          retention-days: 7
+          if-no-files-found: warn
