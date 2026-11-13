@@ -30,7 +30,7 @@ HERE = Path(__file__).resolve().parent
 OUT = HERE / "output"
 MESSAGE_FILE = OUT / "dingtalk.md"
 STATUS_FILE = OUT / "notify_status.json"
-TITLE = "对照品对账日报"
+TITLE = "对照品信息对账日报"
 # 保守的自定义长度上限（非官方限制），防止差异清单过长导致发送失败
 MAX_TEXT_LEN = 15000
 
