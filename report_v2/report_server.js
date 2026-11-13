@@ -11,6 +11,9 @@
 const express = require('express');
 const https = require('https');
 const crypto = require('crypto');
+const zlib = require('zlib');
+const fs = require('fs');
+const path = require('path');
 const AdmZip = require('adm-zip');
 
 const PORT = process.env.PORT || 3001;
@@ -19,6 +22,8 @@ const REPO = 'Reference-data';
 const GH_TOKEN = process.env.RENDER_GITHUB_TOKEN || '';
 const REPORT_TOKEN = process.env.REPORT_TOKEN || '';
 const REPORT_JSON_PATH = 'report_v2/output/report.json';
+const CATALOG_DIR = 'report_v2/output/catalog';
+const PAGE_FILE = path.join(__dirname, 'report.html');
 
 const app = express();
 app.disable('x-powered-by');
@@ -45,11 +50,11 @@ function isAuthed(req) {
   return cookies.some(function (c) { return c.trim() === 'report_auth=' + authValue(); });
 }
 
-function ghRequest(method, path) {
+function ghRequest(method, ghPath) {
   return new Promise(function (resolve, reject) {
     const options = {
       hostname: 'api.github.com',
-      path: path,
+      path: ghPath,
       method: method,
       headers: {
         'Authorization': 'Bearer ' + GH_TOKEN,
@@ -107,76 +112,45 @@ async function loadReport() {
   return JSON.parse(Buffer.from(meta.content, 'base64').toString('utf8'));
 }
 
-function htmlPage() {
-  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>对照品对账查询</title><style>
-*{box-sizing:border-box}body{margin:0;font-family:-apple-system,"Microsoft YaHei",sans-serif;background:#f5f7fa;color:#1f2937}
-.wrap{max-width:1080px;margin:0 auto;padding:24px}h1{font-size:22px;margin:0 0 4px}
-.sub{color:#6b7280;font-size:13px;margin-bottom:20px}
-.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:16px}
-.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:500}
-.ok{background:#e8f5e9;color:#1b5e20}.warn{background:#fff4e5;color:#8a5000}.err{background:#fdecea;color:#a32020}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:14px}
-.kv{background:#f9fafb;border-radius:8px;padding:12px}.kv b{display:block;font-size:20px;margin-top:4px}
-.kv span{font-size:12px;color:#6b7280}
-.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.tab{border:1px solid #d1d5db;background:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:14px}
-.tab.active{background:#2563eb;color:#fff;border-color:#2563eb}
-input[type=text]{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin-bottom:12px}
-.btn{display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;margin-right:8px;margin-top:8px}
-.btn.gray{background:#6b7280}ul{margin:8px 0;padding-left:20px}li{margin:4px 0;font-size:14px}
-pre{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow:auto;font-size:12px;max-height:260px}
-.muted{color:#6b7280;font-size:13px}
-</style></head><body><div class="wrap">
-<h1>对照品对账查询</h1><div class="sub" id="meta">正在加载…</div>
-<div class="card"><div id="summary">加载中…</div><div class="grid" id="stats"></div></div>
-<div class="card"><div class="tabs" id="tabs"></div>
-<input type="text" id="search" placeholder="输入品名或批号筛选当前库的未匹配清单">
-<div id="downloads"></div><div id="list"></div></div>
-<div class="card"><h3 style="margin-top:0;font-size:16px">运行状态与日志</h3><div id="status" class="muted">加载中…</div></div>
-</div><script>
-var DATA=null,ACTIVE="chp",KEYS=["chp","edqm","usp"];
-function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c]})}
-function badge(st){var m={ok:["ok","全部一致"],warning:["warn","发现未匹配"],error:["err","部分任务失败"]};var v=m[st]||["err",st];return "<span class=\\"badge "+v[0]+"\\">"+v[1]+"</span>"}
-function renderSummary(){document.getElementById("meta").textContent="生成时间："+(DATA.generated_at||"-")+" · 数据日期："+(DATA.date||"-");
-document.getElementById("summary").innerHTML="<h3 style=\\"margin:0;font-size:16px\\">对账结论 "+badge(DATA.status)+"</h3>";
-var s=DATA.summary||{};
-document.getElementById("stats").innerHTML=
-"<div class=\\"kv\\"><span>未匹配合计</span><b>"+(s.missing_total||0)+"</b></div>"+
-"<div class=\\"kv\\"><span>单库失败</span><b>"+(s.error_total||0)+"</b></div>"+
-"<div class=\\"kv\\"><span>成功比对库</span><b>"+(KEYS.length-(s.error_total||0))+"</b></div>"+
-"<div class=\\"kv\\"><span>日志错误</span><b>"+(s.log_error_total||0)+"</b></div>"+
-"<div class=\\"kv\\"><span>原始文件</span><b>"+((DATA.files||[]).length)+"</b></div>"}
-function renderTabs(){var h="";KEYS.forEach(function(k){var d=DATA.sources[k]||{};h+="<button class=\\"tab "+(k===ACTIVE?"active":"")+"\\" data-k=\\""+k+"\\">"+esc(d.label||k)+"</button>"});
-document.getElementById("tabs").innerHTML=h;
-Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(b){b.onclick=function(){ACTIVE=b.getAttribute("data-k");renderTabs();renderList()}})}
-function renderDownloads(){var h="";(DATA.files||[]).forEach(function(f){h+="<a class=\\"btn\\" href=\\"/api/report/download/"+f.key+"\\">下载 "+esc(f.label)+" 原始 Excel</a>"});
-if(!h){h="<span class=\\"muted\\">本次运行未生成原始 Excel 文件。</span>"}document.getElementById("downloads").innerHTML=h}
-function renderList(){var d=DATA.sources[ACTIVE]||{},q=document.getElementById("search").value.trim().toUpperCase();
-var h="";if(!d.ok){h+="<p style=\\"color:#a32020\\">该库未比对（官方目录抓取或读取失败）："+esc(d.error||"未知错误")+"</p>"}
-else if(d.skipped){h+="<p style=\\"color:#8a5000\\">"+esc(d.note||"基准表无数据，未执行比对")+"</p>"}
-else if(!(d.missing||[]).length){h+="<p class=\\"muted\\">"+(d.note?esc(d.note)+"（核对 "+(d.checked||0)+" 条，未匹配 0 条）":"该库未发现未匹配品种。")+"</p>"}
-else{
-var items=d.missing.filter(function(x){return !q||x.toUpperCase().indexOf(q)>=0});h+="<p class=\\"muted\\">未匹配 "+(d.missing.length)+" 条，当前显示 "+items.length+" 条</p><ul>";
-items.forEach(function(x){h+="<li>"+esc(x)+"</li>"});h+="</ul>"}document.getElementById("list").innerHTML=h}
-function renderStatus(){fetch("/api/report/status").then(function(r){return r.json()}).then(function(s){
-var h="<p>服务端错误记录 "+((s.serverLogs||[]).length)+" 条</p>";
-var errs=(DATA.log_errors||[]).concat(s.serverLogs||[]);
-if(!errs.length){h+="<p class=\\"muted\\">未发现运行错误。</p>"}else{h+="<pre>";errs.slice(-30).forEach(function(e){h+=esc((e.file?e.file+":"+e.line+" ":"")+(e.text||e.message||""))+"\\n"});h+="</pre>"}
-document.getElementById("status").innerHTML=h}).catch(function(e){document.getElementById("status").textContent="状态读取失败："+e.message})}
-function loadReport(tryNo){
-fetch("/api/report/data").then(function(r){if(!r.ok){throw new Error("HTTP "+r.status)}return r.json()}).then(function(d){DATA=d;
-renderSummary();renderTabs();renderDownloads();renderList();renderStatus()}).catch(function(e){
-if(tryNo<10){
-document.getElementById("meta").textContent="服务可能正在唤醒（Render 免费实例冷启动约 1 分钟），第 "+tryNo+"/10 次重试中…（"+e.message+"）";
-setTimeout(function(){loadReport(tryNo+1)},8000);
-}else{
-document.getElementById("summary").innerHTML="<span style=\\"color:#a32020\\">报告加载失败："+esc(e.message)+"</span>";
-document.getElementById("meta").textContent="已重试多次仍失败：请检查 Render 服务是否在线、工作流是否已运行且 report.json 已提交到仓库"}});}
-loadReport(1);
-document.getElementById("search").addEventListener("input",function(){if(DATA){renderList()}});
-</script></body></html>`;
+/* 官方目录检索索引：仓库里的 gzip JSON，内存缓存 30 分钟，避免每次请求都打 GitHub API。 */
+const CATALOG_TTL = 30 * 60 * 1000;
+const catalogCache = new Map();   // key -> { at, data }
+async function loadCatalog(key) {
+  if (['chp', 'edqm', 'usp'].indexOf(key) === -1) {
+    throw new Error('未知目录：' + key);
+  }
+  const cached = catalogCache.get(key);
+  if (cached && Date.now() - cached.at < CATALOG_TTL) return cached.data;
+
+  const encoded = (CATALOG_DIR + '/' + key + '.json.gz').split('/').map(encodeURIComponent).join('/');
+  const res = await ghRequest('GET', '/repos/' + OWNER + '/' + REPO + '/contents/' + encoded);
+  if (res.status !== 200) {
+    throw new Error('读取官方目录索引失败（HTTP ' + res.status + '）。索引由每日对账工作流生成，请确认工作流已成功运行。');
+  }
+  const meta = JSON.parse(res.body.toString('utf8'));
+  let payload;
+  if (meta.content && meta.encoding === 'base64') {
+    payload = Buffer.from(meta.content, 'base64');
+  } else {
+    // 大于 1MB 时 GitHub 不返回 content，改走 blob API
+    const blob = await ghRequest('GET', '/repos/' + OWNER + '/' + REPO + '/git/blobs/' + meta.sha);
+    if (blob.status !== 200) throw new Error('读取目录索引 blob 失败，HTTP ' + blob.status);
+    payload = Buffer.from(JSON.parse(blob.body.toString('utf8')).content, 'base64');
+  }
+  const data = JSON.parse(zlib.gunzipSync(payload).toString('utf8'));
+  catalogCache.set(key, { at: Date.now(), data: data });
+  return data;
+}
+
+function catalogMeta() {
+  const result = {};
+  ['chp', 'edqm', 'usp'].forEach(function (key) {
+    const hit = catalogCache.get(key);
+    result[key] = hit
+      ? { total: hit.data.total, generated_at: hit.data.generated_at, label: hit.data.label, short: hit.data.short }
+      : null;
+  });
+  return result;
 }
 
 app.get('/health', function (req, res) {
@@ -196,7 +170,10 @@ app.get('/report', function (req, res) {
   if (!isAuthed(req)) {
     return res.status(401).send('<meta charset="utf-8"><p>需要访问口令。请在链接后加上 ?key=你的口令 后打开。</p>');
   }
-  res.type('html').send(htmlPage());
+  if (!fs.existsSync(PAGE_FILE)) {
+    return res.status(500).send('页面文件缺失：report_v2/report.html');
+  }
+  res.type('html').send(fs.readFileSync(PAGE_FILE, 'utf8'));
 });
 
 app.get('/api/report/data', async function (req, res) {
@@ -209,9 +186,101 @@ app.get('/api/report/data', async function (req, res) {
   }
 });
 
+/* 只把 error/warn 归为错误；info 级日志单独返回，前端不再误报。 */
 app.get('/api/report/status', function (req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'unauthorized' });
-  res.json({ serverLogs: serverLogs });
+  const errors = serverLogs.filter(function (e) { return e.level === 'error' || e.level === 'warn'; });
+  res.json({
+    errors: errors,
+    logs: serverLogs,
+    errorCount: errors.length,
+    startedAt: serverLogs.length ? serverLogs[0].time : null
+  });
+});
+
+app.get('/api/catalog/meta', async function (req, res) {
+  if (!isAuthed(req)) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    for (const key of ['chp', 'edqm', 'usp']) await loadCatalog(key);
+    res.json({ ok: true, sources: catalogMeta() });
+  } catch (err) {
+    log('warn', 'catalog meta: ' + err.message);
+    res.json({ ok: false, sources: catalogMeta(), error: err.message });
+  }
+});
+
+app.get('/api/catalog/search', async function (req, res) {
+  if (!isAuthed(req)) return res.status(401).json({ error: 'unauthorized' });
+  const q = String(req.query.q || '').trim().toUpperCase();
+  const nameQ = String(req.query.name || '').trim().toUpperCase();
+  const lotQ = String(req.query.lot || '').trim().toUpperCase();
+  const source = ['chp', 'edqm', 'usp'].indexOf(req.query.source) >= 0 ? req.query.source : 'all';
+  let limit = parseInt(req.query.limit, 10) || 100;
+  limit = Math.max(1, Math.min(limit, 200));
+  let page = parseInt(req.query.page, 10) || 1;
+  page = Math.max(1, page);
+  if (!q && !nameQ && !lotQ) {
+    return res.json({ total: 0, items: [], returned: 0, page: 1, pages: 0, limit: limit, counts: {} });
+  }
+
+  const terms = q ? q.split(/\s+/).filter(Boolean) : [];
+  const keys = source === 'all' ? ['chp', 'edqm', 'usp'] : [source];
+  const items = [];
+  const counts = {};
+  let total = 0;
+  const skip = (page - 1) * limit;
+  try {
+    for (const key of keys) {
+      const cat = await loadCatalog(key);
+      let matched = 0;
+      for (const row of cat.rows) {
+        const nameVal = String(row[cat.name_col] || '').toUpperCase();
+        const lotVal = String(row[cat.lot_col] || '').toUpperCase();
+        if (nameQ && nameVal.indexOf(nameQ) < 0) continue;
+        if (lotQ && lotVal.indexOf(lotQ) < 0) continue;
+        let hit = true;
+        if (terms.length) {
+          const haystack = row.join(' ').toUpperCase();
+          for (const term of terms) {
+            if (haystack.indexOf(term) < 0) { hit = false; break; }
+          }
+        }
+        if (!hit) continue;
+        matched++;
+        if (matched > skip && items.length < limit) {
+          items.push({
+            source: key,
+            short: cat.short,
+            label: cat.label,
+            columns: cat.columns,
+            name_col: cat.name_col,
+            lot_col: cat.lot_col,
+            cells: row
+          });
+        }
+      }
+      counts[key] = { total: cat.total, matched: matched };
+      total += matched;
+    }
+    const first = catalogCache.get(keys[0]);
+    res.json({
+      total: total,
+      returned: items.length,
+      page: page,
+      pages: Math.ceil(total / limit),
+      limit: limit,
+      query: q,
+      name: nameQ,
+      lot: lotQ,
+      source: source,
+      counts: counts,
+      items: items,
+      generated_at: first ? first.data.generated_at : ''
+    });
+  } catch (err) {
+    log('error', 'catalog search: ' + err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/report/download/:key', async function (req, res) {
