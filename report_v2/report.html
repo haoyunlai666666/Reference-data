@@ -197,13 +197,18 @@ function renderList(){
 }
 function renderStatus(){
   fetch('/api/report/status').then(function(r){return r.json()}).then(function(s){
-    var errs=s.errors||[],logs=s.logs||s.serverLogs||[];
+    var raw=s.errors||[];
+    /* 服务端把 warn 也放在 errors 里（例如索引尚未生成），这里只把真正的 error 计为错误，
+       避免页面底部再次出现「发现 N 条错误」的误报。 */
+    var errs=raw.filter(function(e){return !e.level||e.level==='error'});
+    var warns=raw.filter(function(e){return e.level==='warn'});
+    var logs=s.logs||s.serverLogs||[];
     var build=(DATA&&DATA.log_errors)||[];
     var h='';
     if(errs.length||build.length){h+='<div class="statusline"><span class="pulse bad"></span><b style="color:#b91c1c">发现 '+(errs.length+build.length)+' 条错误</b><span class="tail">请查看下方日志</span></div><pre>';
       build.slice(-20).forEach(function(e){h+=esc((e.file?e.file+':'+e.line+' ':'')+(e.text||''))+'\n'});
       errs.slice(-20).forEach(function(e){h+=esc(e.time+' '+e.level+' '+e.message)+'\n'});h+='</pre>'}
-    else{h='<div class="statusline"><span class="pulse"></span><b style="color:#047857">服务运行正常，未发现运行错误</b><span class="tail">最近启动：'+fmtTime(s.startedAt||(logs[0]&&logs[0].time))+'</span></div>'}
+    else{h='<div class="statusline"><span class="pulse"></span><b style="color:#047857">服务运行正常，未发现运行错误</b><span class="tail">'+(warns.length?warns.length+' 条提示（非错误） · ':'')+'最近启动：'+fmtTime(s.startedAt||(logs[0]&&logs[0].time))+'</span></div>'}
     if(logs.length){h+='<details><summary>查看服务端运行日志（'+logs.length+' 条，含正常启动信息）</summary><pre>'+logs.slice(-30).map(function(e){return esc(e.time+' ['+e.level+'] '+e.message)}).join('\n')+'</pre></details>'}
     document.getElementById('status').innerHTML=h;
     document.getElementById('statusTail').textContent='错误 '+errs.length+' 条 / 日志 '+logs.length+' 条';
