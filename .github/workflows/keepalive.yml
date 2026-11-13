@@ -1,0 +1,29 @@
+# 保活任务：Render 免费实例 15 分钟无访问会休眠，冷启动需 1 分钟左右。
+# 每 10 分钟 ping 一次 /health，让查询网页始终保持唤醒、秒开。
+# 说明：仓库为 public，GitHub Actions 对 public 仓库免费；每天的对账工作流
+# 会提交 report.json，因此仓库始终有活动，本定时任务不会被 GitHub 自动停用。
+
+name: 查询网页保活（防 Render 休眠）
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping 查询网页服务
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 https://reference-data.onrender.com/health)
+          echo "health HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "::warning::保活 ping 返回异常状态码 $code"
+          fi
