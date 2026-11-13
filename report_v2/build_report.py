@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import io
+import gzip
 import json
 import os
 import quopri
@@ -27,7 +28,8 @@ ROOT = HERE.parent
 OUT = HERE / "output"
 FILES = OUT / "files"
 LOGS = OUT / "logs"
-for _d in (OUT, FILES, LOGS):
+CATALOG_DIR = OUT / "catalog"
+for _d in (OUT, FILES, LOGS, CATALOG_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 BASE_FILE = ROOT / "现有全部对照品目录.xlsx"
@@ -163,6 +165,155 @@ def read_usp():
 
 
 READERS = {"chp": read_chp, "edqm": read_edqm, "usp": read_usp}
+
+
+# ---------------------------------------------------------------------------
+# 官方目录全量数据清洗：把三个原始 Excel / MHTML 统一成可检索的轻量索引。
+# 输出 report_v2/output/catalog/{key}.json.gz，随工作流提交到仓库，
+# 网页服务端按需读取，不再依赖 7 天即过期的 Actions 构件。
+# ---------------------------------------------------------------------------
+
+CATALOG_FIELDS = {
+    # (品名列关键字, 批号列关键字)；用于定位每行的检索主字段
+    "chp": (("品名",), ("批号",)),
+    "edqm": (("reference", "standard"), ("batch",)),
+    "usp": (("product", "name"), ("current", "lot")),
+}
+
+
+def norm_cell(value):
+    """清洗单元格：去 Excel 公式引号、空白归一、截断超长文本。"""
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if text.lower() in ("nan", "none", "nat", "<na>", "null"):
+        return ""
+    wrapped = re.fullmatch(r'="(.*)"', text, flags=re.S)
+    if wrapped:
+        text = wrapped.group(1)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:400]
+
+
+def col_index(columns, *keywords):
+    for idx, col in enumerate(columns):
+        flat = re.sub(r"\s+", "", str(col)).lower()
+        if all(k.lower() in flat for k in keywords):
+            return idx
+    return None
+
+
+def load_catalog_frame(key):
+    path = SOURCES[key]["path"]
+    if not path.exists():
+        raise FileNotFoundError(f"未找到官方目录文件：{path.name}")
+    if key == "usp":
+        raw = path.read_bytes()
+        text = quopri.decodestring(raw).decode("utf-8", errors="ignore")
+        dfs = pd.read_html(io.StringIO(text), flavor="lxml")
+        if not dfs:
+            raise ValueError("USP 文件解码后未找到任何 HTML 表格")
+        df = None
+        for candidate in dfs:
+            candidate = candidate.astype(str)
+            header_idx = None
+            for i in range(min(10, len(candidate))):
+                vals = [
+                    re.sub(r"\s+", "", v).lower()
+                    for v in candidate.iloc[i].astype(str).tolist()
+                ]
+                if any("productname" in v for v in vals) and any(
+                    "currentlot" in v for v in vals
+                ):
+                    header_idx = i
+                    break
+            if header_idx is None:
+                continue
+            candidate.columns = candidate.iloc[header_idx].astype(str)
+            df = candidate.iloc[header_idx + 1:].reset_index(drop=True)
+            break
+        if df is None:
+            raise ValueError("USP 文件中未定位到含 Product Name / Current Lot 的表格")
+        return df.astype(str)
+    return pd.read_excel(path, dtype=str).astype(str)
+
+
+def build_catalog(key):
+    info = SOURCES[key]
+    df = load_catalog_frame(key)
+    columns = [norm_cell(c) for c in df.columns]
+
+    name_keys, lot_keys = CATALOG_FIELDS[key]
+    name_col = col_index(columns, *name_keys)
+    if name_col is None and key == "edqm":
+        name_col = col_index(columns, "reference")
+    lot_col = col_index(columns, *lot_keys)
+    if lot_col is None and key == "usp":
+        lot_col = col_index(columns, "lot")
+    if name_col is None:
+        raise KeyError(f"{key} 未定位到品名列，实际列名：{columns}")
+    if lot_col is None:
+        raise KeyError(f"{key} 未定位到批号列，实际列名：{columns}")
+
+    rows = []
+    seen = set()
+    for raw_row in df.values.tolist():
+        cells = [norm_cell(v) for v in raw_row]
+        if not any(cells):
+            continue
+        # 去掉重复行（USP 的 MHTML 偶尔会重复输出同一条）
+        fingerprint = tuple(cells[:6])
+        if fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        rows.append(cells)
+
+    return {
+        "source": key,
+        "label": info["label"],
+        "short": info["short"],
+        "generated_at": NOW.isoformat(),
+        "date": DATE_TAG,
+        "columns": columns,
+        "name_col": name_col,
+        "lot_col": lot_col,
+        "rows": rows,
+        "total": len(rows),
+    }
+
+
+def export_catalogs():
+    """导出三库全量索引，返回摘要；任何单库失败都不影响其他库与主流程。"""
+    summary = {}
+    for key in SOURCES:
+        try:
+            catalog = build_catalog(key)
+            payload = json.dumps(
+                catalog, ensure_ascii=False, separators=(",", ":")
+            ).encode("utf-8")
+            (CATALOG_DIR / f"{key}.json.gz").write_bytes(
+                gzip.compress(payload, compresslevel=9, mtime=0)
+            )
+            summary[key] = {
+                "label": catalog["label"],
+                "short": catalog["short"],
+                "total": catalog["total"],
+                "columns": len(catalog["columns"]),
+                "ok": True,
+            }
+            print(f"[catalog] {key}: 已清洗 {catalog['total']} 行 / {len(catalog['columns'])} 列")
+        except Exception as exc:
+            summary[key] = {"ok": False, "total": 0, "error": f"{type(exc).__name__}: {exc}"}
+            print(f"[catalog] {key}: 清洗失败 {type(exc).__name__}: {exc}")
+    (CATALOG_DIR / "meta.json").write_text(
+        json.dumps(
+            {"generated_at": NOW.isoformat(), "date": DATE_TAG, "sources": summary},
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return summary
 
 
 def compare_one(key):
@@ -304,6 +455,7 @@ def main():
     sources = {key: compare_one(key) for key in SOURCES}
     log_errors = collect_log_errors()
     published = publish_source_files()
+    catalog_summary = export_catalogs()
 
     error_total = sum(1 for s in sources.values() if not s["ok"])
     missing_total = sum(len(s["missing"]) for s in sources.values())
@@ -332,6 +484,7 @@ def main():
         },
         "sources": sources,
         "files": published,
+        "catalog": catalog_summary,
         "log_errors": log_errors,
     }
 
