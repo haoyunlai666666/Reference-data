@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对照品信息对账查询</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#2d3748;background:#0f0c1b;overflow-x:hidden}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.glow{position:fixed;border-radius:50%;filter:blur(90px);opacity:.35;z-index:0;pointer-events:none;animation:float 14s ease-in-out infinite alternate}
+.glow.a{width:420px;height:420px;background:#5b4bd6;top:-140px;left:-120px}
+.glow.b{width:380px;height:380px;background:#2b6cb0;bottom:-160px;right:-100px;animation-delay:-6s}
+@keyframes float{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(40px,30px,0) scale(1.15)}}
+.wrap{position:relative;z-index:2;max-width:1080px;margin:0 auto;padding:32px 20px 48px}
+.hero{text-align:center;margin:8px 0 28px;animation:rise .7s ease both}
+.hero .mark{display:inline-flex;align-items:center;justify-content:center;width:58px;height:58px;border-radius:18px;font-size:28px;background:linear-gradient(135deg,#667eea,#764ba2);box-shadow:0 10px 28px rgba(102,126,234,.45);margin-bottom:14px}
+.hero h1{font-size:30px;letter-spacing:.5px;background:linear-gradient(90deg,#fff 10%,#c7b8ff 55%,#8ea8ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700}
+.hero .sub{color:#a9a6c8;font-size:13px;margin-top:9px}
+.hero .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.chip{font-size:12px;color:#dcd8f5;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);padding:5px 12px;border-radius:20px;backdrop-filter:blur(6px)}
+.chip b{color:#fff}
+.card{background:rgba(255,255,255,.96);border-radius:20px;padding:24px;margin-bottom:20px;box-shadow:0 15px 35px rgba(0,0,0,.3);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.6);animation:rise .65s cubic-bezier(.25,1,.5,1) both;transition:transform .3s,box-shadow .3s}
+.card:hover{transform:translateY(-3px);box-shadow:0 22px 45px rgba(0,0,0,.38)}
+.card:nth-of-type(2){animation-delay:.08s}.card:nth-of-type(3){animation-delay:.16s}.card:nth-of-type(4){animation-delay:.24s}.card:nth-of-type(5){animation-delay:.32s}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.ct{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.ct h2{font-size:17px;color:#3c4257;font-weight:700}
+.ct .ico{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;box-shadow:0 4px 12px rgba(102,126,234,.35)}
+.ct .tail{margin-left:auto;font-size:12px;color:#8b90a5}
+.badge{display:inline-block;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.3px}
+.badge.ok{background:#dcfce7;color:#166534}.badge.warn{background:#ffedd5;color:#9a3412}.badge.err{background:#fee2e2;color:#991b1b}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kv{background:linear-gradient(160deg,#f8f7ff,#f1f4ff);border:1px solid #ecebff;border-radius:14px;padding:14px 16px;transition:transform .25s,box-shadow .25s}
+.kv:hover{transform:translateY(-4px);box-shadow:0 10px 22px rgba(102,126,234,.18)}
+.kv span{display:block;font-size:12px;color:#7b819a;margin-bottom:6px}
+.kv b{font-size:26px;font-weight:800;background:linear-gradient(90deg,#667eea,#764ba2);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.1}
+.kv small{font-size:11px;color:#9aa0b5;margin-left:4px;font-weight:500}
+.hint{font-size:13px;color:#8b90a5;margin:-6px 0 16px;line-height:1.7}
+.form{display:grid;grid-template-columns:1.3fr 1fr .9fr auto;gap:10px;align-items:center}
+input[type=text],select{width:100%;padding:11px 13px;border:1.5px solid #e2e6f0;border-radius:10px;font-size:14px;color:#3c4257;background:#fbfcff;outline:none;transition:border .2s,box-shadow .2s;font-family:inherit}
+input[type=text]:focus,select:focus{border-color:#8b7ff0;box-shadow:0 0 0 4px rgba(102,126,234,.14);background:#fff}
+input::placeholder{color:#aeb3c6}
+button.btn,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(90deg,#667eea,#764ba2);color:#fff;border:none;padding:11px 20px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 4px 15px rgba(102,126,234,.4);transition:transform .2s,filter .2s,box-shadow .2s;white-space:nowrap;font-family:inherit}
+button.btn:hover,.btn:hover{transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 8px 22px rgba(102,126,234,.55)}
+button.btn:active,.btn:active{transform:translateY(0)}
+button.btn:disabled{opacity:.6;cursor:wait;transform:none}
+.btn.ghost{background:#f1f2fb;color:#5b52b6;box-shadow:none;border:1px solid #e2e0f5}
+.btn.ghost:hover{background:#e8e6fa;box-shadow:0 4px 12px rgba(91,82,182,.15)}
+.quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 4px}
+.quick span{font-size:12px;color:#9aa0b5}
+.qtag{font-size:12px;padding:4px 11px;border-radius:16px;background:#f1f0fd;color:#6254b8;cursor:pointer;border:1px solid #e5e1fa;transition:all .2s}
+.qtag:hover{background:linear-gradient(90deg,#667eea,#764ba2);color:#fff;transform:translateY(-1px)}
+.msg{font-size:13px;padding:12px 14px;border-radius:10px;margin:14px 0 0;line-height:1.6}
+.msg.info{background:#eef2ff;color:#4338ca}.msg.good{background:#ecfdf5;color:#047857}.msg.bad{background:#fef2f2;color:#b91c1c}.msg.muted{background:#f7f8fc;color:#6b7280}
+.tabs{display:flex;background:#edf2f7;padding:4px;border-radius:12px;margin-bottom:16px;gap:4px;flex-wrap:wrap}
+.tab{flex:1;min-width:130px;border:none;background:none;padding:10px 12px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-radius:9px;transition:all .25s;font-family:inherit}
+.tab.active{background:#fff;color:#667eea;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.tab:hover:not(.active){color:#4c51bf}
+.dl{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.dl .btn{font-size:13px;padding:10px 16px}
+.list{font-size:14px;color:#4a5568;line-height:1.8}
+.list ul{padding-left:20px;margin:8px 0}.list li{padding:3px 0}
+.tblwrap{overflow-x:auto;margin-top:14px;border:1px solid #eaecf5;border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:680px}
+th{background:linear-gradient(90deg,#f6f5ff,#f3f6ff);color:#5a567f;font-weight:700;text-align:left;padding:11px 12px;border-bottom:1px solid #e8e7f7;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid #f1f2f8;vertical-align:top;color:#4a5568}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:background .2s}tbody tr:hover{background:#faf9ff}
+.src{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap}
+.src.chp{background:#e0f2fe;color:#075985}.src.edqm{background:#ede9fe;color:#5b21b6}.src.usp{background:#dcfce7;color:#166534}
+.name{font-weight:600;color:#2d3748}.lot{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#5b52b6;font-size:12px}
+.extra{font-size:12px;color:#8b90a5;line-height:1.6}
+mark{background:#fff3a3;color:#7c3aed;padding:0 2px;border-radius:3px}
+.detail td{background:#faf9ff;font-size:12px;color:#5a6076}
+.detail .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 18px}
+.detail b{color:#5b52b6;font-weight:600}
+.pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;font-size:13px;color:#6b7280;flex-wrap:wrap}
+.statusline{display:flex;align-items:center;gap:10px;font-size:14px;padding:10px 0}
+.pulse{width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pulse 2s infinite}
+.pulse.bad{background:#ef4444;box-shadow:0 0 0 0 rgba(239,68,68,.6)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55)}70%{box-shadow:0 0 0 10px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+pre{background:#1b1830;color:#d8d4f0;padding:14px;border-radius:12px;overflow:auto;font-size:12px;max-height:220px;line-height:1.6;margin-top:10px}
+details{margin-top:10px}summary{cursor:pointer;font-size:12px;color:#8b90a5;outline:none}summary:hover{color:#5b52b6}
+.foot{text-align:center;color:#8683a8;font-size:12px;margin-top:8px;line-height:1.8}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:760px){.form{grid-template-columns:1fr}.wrap{padding:22px 14px 36px}.hero h1{font-size:23px}.card{padding:18px}.ct .tail{margin-left:0;width:100%}}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div class="glow a"></div><div class="glow b"></div>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="mark">&#128203;</div>
+    <h1>对照品信息对账查询</h1>
+    <div class="sub" id="meta">正在加载对账数据…</div>
+    <div class="chips" id="catChips"></div>
+  </div>
+
+  <div class="card">
+    <div class="ct"><span class="ico">&#9989;</span><h2>对账结论</h2><span id="badge"></span><span class="tail" id="genTime"></span></div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="card">
+    <div class="ct"><span class="ico">&#128269;</span><h2>官方目录全库检索</h2><span class="tail" id="catTail">索引加载中…</span></div>
+    <p class="hint">检索中检院（ChP）、EDQM（EP）、USP 三大药典官方目录的<b>全量数据</b>。可按品名、批号精确筛选，也可输入任意关键词在全部字段中查找；点击结果行可展开该条目的完整字段。</p>
+    <div class="form">
+      <input type="text" id="qName" placeholder="对照品名称 / 品名关键词">
+      <input type="text" id="qLot" placeholder="批号关键词">
+      <select id="qSource">
+        <option value="all">全部目录</option>
+        <option value="chp">中检院 ChP</option>
+        <option value="edqm">EDQM / EP</option>
+        <option value="usp">USP</option>
+      </select>
+      <button class="btn" id="btnSearch">&#128269; 检索</button>
+    </div>
+    <div class="quick"><span>快捷试查：</span>
+      <span class="qtag" data-n="阿莫西林">阿莫西林</span>
+      <span class="qtag" data-n="ASPIRIN">ASPIRIN</span>
+      <span class="qtag" data-n="CAFFEINE">CAFFEINE</span>
+      <span class="qtag" data-n="100001">批号 100001</span>
+      <span class="qtag" data-l="R18770">批号 R18770</span>
+    </div>
+    <div id="searchInfo"></div>
+    <div id="searchResults"></div>
+    <div class="pager" id="pager"></div>
+  </div>
+
+  <div class="card">
+    <div class="ct"><span class="ico">&#128230;</span><h2>未匹配清单与原始文件</h2></div>
+    <div class="tabs" id="tabs"></div>
+    <input type="text" id="filter" placeholder="输入品名或批号筛选当前库的未匹配清单">
+    <div class="dl" id="downloads"></div>
+    <div class="list" id="list"></div>
+  </div>
+
+  <div class="card">
+    <div class="ct"><span class="ico">&#9881;</span><h2>运行状态与日志</h2><span class="tail" id="statusTail"></span></div>
+    <div id="status">加载中…</div>
+  </div>
+
+  <div class="foot">数据来源：国家药品标准物质目录 / EDQM 欧洲药典 / USP 美国药典 · 每日北京时间 08:00 自动更新<br>原始 Excel 保留 7 天 · 官方目录检索索引随每日对账同步刷新</div>
+</div>
+
+<script>
+/* ---------- 流星雨背景（参照「对照品目录管理中心」） ---------- */
+var canvas=document.getElementById('sky'),ctx=canvas.getContext('2d');
+function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
+window.addEventListener('resize',resize);resize();
+function Meteor(){this.reset();this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height}
+Meteor.prototype.reset=function(){this.length=Math.random()*80+50;this.speedX=(Math.random()*2+1.5)*(Math.random()>.5?1:-1);this.speedY=(Math.random()*2+1.5)*(Math.random()>.5?1:-1);this.width=Math.random()*2+1};
+Meteor.prototype.update=function(){this.x+=this.speedX;this.y+=this.speedY;if(this.x<0||this.x>canvas.width)this.speedX*=-1;if(this.y<0||this.y>canvas.height)this.speedY*=-1};
+Meteor.prototype.draw=function(){var sp=Math.sqrt(this.speedX*this.speedX+this.speedY*this.speedY),tx=this.x-(this.speedX/sp)*this.length,ty=this.y-(this.speedY/sp)*this.length;var g=ctx.createLinearGradient(this.x,this.y,tx,ty);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.1,'rgba(118,75,162,.8)');g.addColorStop(.6,'rgba(102,126,234,.3)');g.addColorStop(1,'rgba(15,12,27,0)');ctx.beginPath();ctx.strokeStyle=g;ctx.lineWidth=this.width;ctx.lineCap='round';ctx.moveTo(this.x,this.y);ctx.lineTo(tx,ty);ctx.stroke()};
+var meteors=[];for(var i=0;i<16;i++)meteors.push(new Meteor());
+function animate(){var g=ctx.createLinearGradient(0,0,canvas.width,canvas.height);g.addColorStop(0,'#0f0c20');g.addColorStop(.5,'#15102a');g.addColorStop(1,'#06040a');ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height);meteors.forEach(function(m){m.update();m.draw()});requestAnimationFrame(animate)}animate();
+
+/* ---------- 工具 ---------- */
+var DATA=null,ACTIVE='chp',KEYS=['chp','edqm','usp'],CAT=null,CURPAGE=1,LASTQ=null;
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function hl(s,q){var out=esc(s);if(!q)return out;var parts=q.trim().toUpperCase().split(/\s+/).filter(Boolean);parts.forEach(function(t){if(!t)return;var re=new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');out=out.replace(re,'<mark>$1</mark>')});return out}
+function badge(st){var m={ok:['ok','全部一致'],warning:['warn','发现未匹配'],error:['err','部分任务失败']},v=m[st]||['err',st];return '<span class="badge '+v[0]+'">'+v[1]+'</span>'}
+function fmtTime(s){if(!s)return '-';var d=new Date(s);if(isNaN(d.getTime()))return s;return d.toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false})}
+
+/* ---------- 对账报告 ---------- */
+function renderSummary(){
+  document.getElementById('meta').textContent='生成时间：'+fmtTime(DATA.generated_at)+' · 数据日期：'+(DATA.date||'-');
+  document.getElementById('badge').innerHTML=badge(DATA.status);
+  document.getElementById('genTime').textContent='报告版本 '+(DATA.date||'-');
+  var s=DATA.summary||{},cards=[
+    ['未匹配合计',s.missing_total||0,'条'],['单库失败',s.error_total||0,'项'],
+    ['成功比对库',KEYS.length-(s.error_total||0),'个'],['日志错误',s.log_error_total||0,'条'],
+    ['原始文件',(DATA.files||[]).length,'个']
+  ];
+  document.getElementById('stats').innerHTML=cards.map(function(c){return '<div class="kv"><span>'+c[0]+'</span><b>'+c[1]+'</b><small>'+c[2]+'</small></div>'}).join('');
+}
+function renderTabs(){
+  document.getElementById('tabs').innerHTML=KEYS.map(function(k){var d=DATA.sources[k]||{};return '<button class="tab '+(k===ACTIVE?'active':'')+'" data-k="'+k+'">'+esc(d.label||k)+'</button>'}).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(b){b.onclick=function(){ACTIVE=b.getAttribute('data-k');renderTabs();renderList()}});
+}
+function renderDownloads(){
+  var h=(DATA.files||[]).map(function(f){return '<a class="btn" href="/api/report/download/'+f.key+'">&#11015; 下载 '+esc(f.label)+'</a>'}).join('');
+  document.getElementById('downloads').innerHTML=h||'<span class="msg muted">本次运行未生成原始 Excel 文件。</span>';
+}
+function renderList(){
+  var d=DATA.sources[ACTIVE]||{},q=document.getElementById('filter').value.trim().toUpperCase(),h='';
+  if(!d.ok){h='<p style="color:#b91c1c">该库未比对（官方目录抓取或读取失败）：'+esc(d.error||'未知错误')+'</p>'}
+  else if(d.skipped){h='<p style="color:#9a3412">'+esc(d.note||'基准表无数据')+'</p>'}
+  else if(!(d.missing||[]).length){h='<p class="msg good">'+(d.note?esc(d.note)+' · ':'')+'核对 '+(d.checked||0)+' 条，未匹配 0 条，未发现失效或下架品种。</p>'}
+  else{var items=d.missing.filter(function(x){return !q||x.toUpperCase().indexOf(q)>=0});h='<p class="msg info">未匹配 '+d.missing.length+' 条，当前显示 '+items.length+' 条</p><ul>'+items.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul>'}
+  document.getElementById('list').innerHTML=h;
+}
+function renderStatus(){
+  fetch('/api/report/status').then(function(r){return r.json()}).then(function(s){
+    var errs=s.errors||[],logs=s.logs||s.serverLogs||[];
+    var build=(DATA&&DATA.log_errors)||[];
+    var h='';
+    if(errs.length||build.length){h+='<div class="statusline"><span class="pulse bad"></span><b style="color:#b91c1c">发现 '+(errs.length+build.length)+' 条错误</b><span class="tail">请查看下方日志</span></div><pre>';
+      build.slice(-20).forEach(function(e){h+=esc((e.file?e.file+':'+e.line+' ':'')+(e.text||''))+'\n'});
+      errs.slice(-20).forEach(function(e){h+=esc(e.time+' '+e.level+' '+e.message)+'\n'});h+='</pre>'}
+    else{h='<div class="statusline"><span class="pulse"></span><b style="color:#047857">服务运行正常，未发现运行错误</b><span class="tail">最近启动：'+fmtTime(s.startedAt||(logs[0]&&logs[0].time))+'</span></div>'}
+    if(logs.length){h+='<details><summary>查看服务端运行日志（'+logs.length+' 条，含正常启动信息）</summary><pre>'+logs.slice(-30).map(function(e){return esc(e.time+' ['+e.level+'] '+e.message)}).join('\n')+'</pre></details>'}
+    document.getElementById('status').innerHTML=h;
+    document.getElementById('statusTail').textContent='错误 '+errs.length+' 条 / 日志 '+logs.length+' 条';
+  }).catch(function(e){document.getElementById('status').innerHTML='<span class="msg bad">状态读取失败：'+esc(e.message)+'</span>'});
+}
+function loadReport(tryNo){
+  fetch('/api/report/data').then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(d){
+    DATA=d;renderSummary();renderTabs();renderDownloads();renderList();renderStatus();
+  }).catch(function(e){
+    if(tryNo<10){document.getElementById('meta').textContent='服务可能正在唤醒（Render 免费实例冷启动约 1 分钟），第 '+tryNo+'/10 次重试中…';setTimeout(function(){loadReport(tryNo+1)},8000)}
+    else{document.getElementById('meta').textContent='报告加载失败：'+e.message+'，请确认工作流已运行且 report.json 已提交';document.getElementById('stats').innerHTML='<div class="msg bad">数据加载失败，请稍后刷新。</div>'}
+  });
+}
+
+/* ---------- 官方目录全库检索 ---------- */
+function renderCatMeta(){
+  var chips=document.getElementById('catChips'),tail=document.getElementById('catTail');
+  if(!CAT||!CAT.ok){chips.innerHTML='';tail.textContent='索引生成中';return}
+  var s=CAT.sources||{},total=0,h='';
+  KEYS.forEach(function(k){var v=s[k];if(v&&v.total){total+=v.total;h+='<span class="chip">'+esc(v.short||k)+' <b>'+v.total.toLocaleString()+'</b> 条</span>'}});
+  chips.innerHTML='<span class="chip">官方目录全量收录 <b>'+total.toLocaleString()+'</b> 条</span>'+h;
+  tail.textContent='索引更新于 '+fmtTime(CAT.sources&&CAT.sources.chp?s.chp.generated_at:s.generated_at);
+}
+function loadCatMeta(){
+  fetch('/api/catalog/meta').then(function(r){return r.json()}).then(function(m){CAT=m;renderCatMeta();
+    if(!m.ok){document.getElementById('searchInfo').innerHTML='<div class="msg info">官方目录索引尚未生成，将在下一次对账工作流运行完成后自动可用（每日北京时间 08:00）。</div>'}
+  }).catch(function(e){document.getElementById('catTail').textContent='索引暂不可用'});
+}
+function renderResults(res){
+  var info=document.getElementById('searchInfo'),box=document.getElementById('searchResults'),pg=document.getElementById('pager');
+  if(!res.total){info.innerHTML='<div class="msg muted">未找到匹配条目。可尝试更短的关键词，或切换目录范围。</div>';box.innerHTML='';pg.innerHTML='';return}
+  info.innerHTML='<div class="msg good">共命中 <b>'+res.total.toLocaleString()+'</b> 条'+(res.pages>1?'（第 '+res.page+' / '+res.pages+' 页）':'')+' · '+KEYS.map(function(k){var c=res.counts[k];return c&&c.matched?'<span class="src '+k+'">'+esc(k.toUpperCase()==='EDQM'?'EP':k.toUpperCase())+' '+c.matched+'</span>':''}).join(' ')+'</div>';
+  var terms=[res.name,res.lot,res.query].filter(Boolean).join(' ');
+  var h='<div class="tblwrap"><table><thead><tr><th>来源</th><th>品名</th><th>批号</th><th>其他信息</th></tr></thead><tbody>';
+  res.items.forEach(function(it,i){
+    var name=it.cells[it.name_col]||'',lot=it.cells[it.lot_col]||'',extra=[],detail='';
+    it.columns.forEach(function(c,idx){if(!c||!it.cells[idx])return;if(idx===it.name_col||idx===it.lot_col)return;if(extra.length<3)extra.push(esc(c)+'：'+hl(it.cells[idx],terms));detail+='<div><b>'+esc(c)+'：</b>'+hl(it.cells[idx],terms)+'</div>'});
+    h+='<tr data-i="'+i+'" style="cursor:pointer"><td><span class="src '+it.source+'">'+esc(it.short||it.source)+'</span></td><td class="name">'+hl(name,terms)+'</td><td class="lot">'+hl(lot,terms)+'</td><td class="extra">'+extra.join('　')+' <span style="color:#8b7ff0">▾ 展开</span></td></tr>';
+    h+='<tr class="detail" id="d'+i+'" style="display:none"><td colspan="4"><div class="dgrid">'+detail+'</div></td></tr>';
+  });
+  h+='</tbody></table></div>';box.innerHTML=h;
+  Array.prototype.forEach.call(box.querySelectorAll('tr[data-i]'),function(tr){tr.onclick=function(){var d=document.getElementById('d'+tr.getAttribute('data-i'));d.style.display=d.style.display==='none'?'table-row':'none'}});
+  if(res.pages>1){pg.innerHTML='<button class="btn ghost" id="prev" '+(res.page<=1?'disabled':'')+'>‹ 上一页</button><span>第 '+res.page+' / '+res.pages+' 页</span><button class="btn ghost" id="next" '+(res.page>=res.pages?'disabled':'')+'>下一页 ›</button>';
+    document.getElementById('prev').onclick=function(){if(CURPAGE>1){CURPAGE--;doSearch()}};
+    document.getElementById('next').onclick=function(){if(CURPAGE<res.pages){CURPAGE++;doSearch()}};
+  }else pg.innerHTML='';
+}
+function doSearch(){
+  var name=document.getElementById('qName').value.trim(),lot=document.getElementById('qLot').value.trim(),src=document.getElementById('qSource').value;
+  if(!name&&!lot){document.getElementById('searchInfo').innerHTML='<div class="msg info">请输入品名或批号后点击检索。</div>';document.getElementById('searchResults').innerHTML='';document.getElementById('pager').innerHTML='';return}
+  var btn=document.getElementById('btnSearch');btn.disabled=true;btn.innerHTML='<span class="spin"></span> 检索中';
+  document.getElementById('searchInfo').innerHTML='<div class="msg info">正在检索三大药典官方目录全量数据…</div>';
+  var qs=new URLSearchParams({name:name,lot:lot,source:src,page:CURPAGE,limit:100});
+  fetch('/api/catalog/search?'+qs.toString()).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j}})}).then(function(o){
+    btn.disabled=false;btn.innerHTML='&#128269; 检索';
+    if(!o.ok||o.j.error){document.getElementById('searchInfo').innerHTML='<div class="msg bad">检索失败：'+esc(o.j.error||'服务异常')+'</div>';document.getElementById('searchResults').innerHTML='';return}
+    LASTQ={name:name,lot:lot,src:src};renderResults(o.j);
+  }).catch(function(e){btn.disabled=false;btn.innerHTML='&#128269; 检索';document.getElementById('searchInfo').innerHTML='<div class="msg bad">检索失败：'+esc(e.message)+'</div>'});
+}
+
+/* ---------- 事件绑定 ---------- */
+document.getElementById('btnSearch').onclick=function(){CURPAGE=1;doSearch()};
+['qName','qLot'].forEach(function(id){document.getElementById(id).addEventListener('keydown',function(e){if(e.key==='Enter'){CURPAGE=1;doSearch()}})});
+document.getElementById('qSource').onchange=function(){CURPAGE=1};
+Array.prototype.forEach.call(document.querySelectorAll('.qtag'),function(t){t.onclick=function(){document.getElementById('qName').value=t.getAttribute('data-n')||'';document.getElementById('qLot').value=t.getAttribute('data-l')||'';CURPAGE=1;doSearch()}});
+document.getElementById('filter').addEventListener('input',function(){if(DATA)renderList()});
+loadReport(1);loadCatMeta();
+</script>
+</body>
+</html>
