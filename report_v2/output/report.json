@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-11-13T13:51:39.659614+08:00",
+  "generated_at": "2026-11-13T18:22:12.938483+08:00",
   "date": "20261113",
   "status": "ok",
-  "run_id": "43367352822",
-  "run_url": "https://github.com/haoyunlai666666/Reference-data/actions/runs/43367352822",
+  "run_id": "43398660449",
+  "run_url": "https://github.com/haoyunlai666666/Reference-data/actions/runs/43398660449",
   "artifact_name": "reference-excels",
   "report_url": "https://reference-data.onrender.com/report?key=rep-9sgg-my4v-wq5e",
   "summary": {
@@ -56,13 +56,13 @@
       "key": "chp",
       "label": "国家药品标准物质目录 (ChP)",
       "filename": "chp_20261113.xlsx",
-      "size_bytes": 317734
+      "size_bytes": 317733
     },
     {
       "key": "edqm",
       "label": "EDQM 欧洲药典",
       "filename": "edqm_20261113.xlsx",
-      "size_bytes": 203667
+      "size_bytes": 203666
     },
     {
       "key": "usp",
@@ -71,5 +71,28 @@
       "size_bytes": 14828254
     }
   ],
+  "catalog": {
+    "chp": {
+      "label": "国家药品标准物质目录 (ChP)",
+      "short": "ChP",
+      "total": 5951,
+      "columns": 8,
+      "ok": true
+    },
+    "edqm": {
+      "label": "EDQM 欧洲药典",
+      "short": "EP",
+      "total": 3289,
+      "columns": 12,
+      "ok": true
+    },
+    "usp": {
+      "label": "USP 美国药典",
+      "short": "USP",
+      "total": 6419,
+      "columns": 24,
+      "ok": true
+    }
+  },
   "log_errors": []
 }

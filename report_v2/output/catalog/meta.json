@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-11-13T18:22:12.938483+08:00",
+  "date": "20261113",
+  "sources": {
+    "chp": {
+      "label": "国家药品标准物质目录 (ChP)",
+      "short": "ChP",
+      "total": 5951,
+      "columns": 8,
+      "ok": true
+    },
+    "edqm": {
+      "label": "EDQM 欧洲药典",
+      "short": "EP",
+      "total": 3289,
+      "columns": 12,
+      "ok": true
+    },
+    "usp": {
+      "label": "USP 美国药典",
+      "short": "USP",
+      "total": 6419,
+      "columns": 24,
+      "ok": true
+    }
+  }
+}
