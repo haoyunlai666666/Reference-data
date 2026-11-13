@@ -2,9 +2,7 @@ name: 对照品对账 V2（钉钉 + 查询网页）
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * *'   # UTC 00:00 = 北京时间 08:00
-
+  
 permissions:
   contents: write
   actions: read
