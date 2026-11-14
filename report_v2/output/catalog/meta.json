@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-11-14T07:40:57.347489+08:00",
-  "date": "20261114",
+  "generated_at": "2026-11-15T07:52:54.918402+08:00",
+  "date": "20261115",
   "sources": {
     "chp": {
       "label": "国家药品标准物质目录 (ChP)",
       "short": "ChP",
-      "total": 5951,
+      "total": 5952,
       "columns": 8,
       "ok": true
     },
@@ -20,7 +20,7 @@
       "label": "USP 美国药典",
       "short": "USP",
       "total": 6419,
-      "columns": 24,
+      "columns": 25,
       "ok": true
     }
   }
