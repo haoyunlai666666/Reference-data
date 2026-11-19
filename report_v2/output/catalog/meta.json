@@ -1,21 +1,27 @@
 {
-  "generated_at": "2026-11-19T06:30:48.937998+08:00",
-  "date": "20261119",
+  "generated_at": "2026-11-20T07:51:12.385080+08:00",
+  "date": "20261120",
   "sources": {
     "chp": {
-      "ok": false,
-      "total": 0,
-      "error": "FileNotFoundError: 未找到官方目录文件：国家药品标准物质目录_全量在售.xlsx"
+      "label": "国家药品标准物质目录 (ChP)",
+      "short": "ChP",
+      "total": 5951,
+      "columns": 8,
+      "ok": true
     },
     "edqm": {
-      "ok": false,
-      "total": 0,
-      "error": "FileNotFoundError: 未找到官方目录文件：EDQM_Catalog_Output.xlsx"
+      "label": "EDQM 欧洲药典",
+      "short": "EP",
+      "total": 3289,
+      "columns": 12,
+      "ok": true
     },
     "usp": {
-      "ok": false,
-      "total": 0,
-      "error": "FileNotFoundError: 未找到官方目录文件：usprefstd.xls"
+      "label": "USP 美国药典",
+      "short": "USP",
+      "total": 6420,
+      "columns": 25,
+      "ok": true
     }
   }
 }

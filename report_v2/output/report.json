@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-11-19T06:30:48.937998+08:00",
-  "date": "20261119",
-  "status": "error",
-  "run_id": "44412157865",
-  "run_url": "https://github.com/haoyunlai666666/Reference-data/actions/runs/44412157865",
+  "generated_at": "2026-11-20T07:51:12.385080+08:00",
+  "date": "20261120",
+  "status": "ok",
+  "run_id": "44629212215",
+  "run_url": "https://github.com/haoyunlai666666/Reference-data/actions/runs/44629212215",
   "artifact_name": "reference-excels",
   "report_url": "https://reference-data.onrender.com/report?key=rep-9sgg-my4v-wq5e",
   "summary": {
-    "status": "error",
-    "error_total": 3,
+    "status": "ok",
+    "error_total": 0,
     "missing_total": 0,
     "skipped_total": 0,
     "log_error_total": 0
@@ -16,60 +16,82 @@
   "sources": {
     "chp": {
       "label": "国家药品标准物质目录 (ChP)",
-      "ok": false,
+      "ok": true,
       "skipped": false,
       "note": "",
       "source_file": "国家药品标准物质目录_全量在售.xlsx",
-      "source_exists": false,
-      "checked": 0,
-      "catalog_rows": 0,
+      "source_exists": true,
+      "checked": 13,
+      "catalog_rows": 5951,
       "missing": [],
-      "error": "FileNotFoundError: 未找到当日抓取文件：国家药品标准物质目录_全量在售.xlsx",
-      "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/Reference-data/Reference-data/report_v2/build_report.py\", line 336, in compare_one\n    raise FileNotFoundError(f\"未找到当日抓取文件：{info['path'].name}\")\nFileNotFoundError: 未找到当日抓取文件：国家药品标准物质目录_全量在售.xlsx\n"
+      "error": ""
     },
     "edqm": {
       "label": "EDQM 欧洲药典",
-      "ok": false,
+      "ok": true,
       "skipped": false,
-      "note": "",
+      "note": "目前正在使用的EP对照品库的名称/批号列为空",
       "source_file": "EDQM_Catalog_Output.xlsx",
-      "source_exists": false,
+      "source_exists": true,
       "checked": 0,
-      "catalog_rows": 0,
+      "catalog_rows": 3289,
       "missing": [],
-      "error": "FileNotFoundError: 未找到当日抓取文件：EDQM_Catalog_Output.xlsx",
-      "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/Reference-data/Reference-data/report_v2/build_report.py\", line 336, in compare_one\n    raise FileNotFoundError(f\"未找到当日抓取文件：{info['path'].name}\")\nFileNotFoundError: 未找到当日抓取文件：EDQM_Catalog_Output.xlsx\n"
+      "error": ""
     },
     "usp": {
       "label": "USP 美国药典",
-      "ok": false,
+      "ok": true,
       "skipped": false,
-      "note": "",
+      "note": "目前正在使用的USP对照品库的名称/批号列为空",
       "source_file": "usprefstd.xls",
-      "source_exists": false,
+      "source_exists": true,
       "checked": 0,
-      "catalog_rows": 0,
+      "catalog_rows": 6420,
       "missing": [],
-      "error": "FileNotFoundError: 未找到当日抓取文件：usprefstd.xls",
-      "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/Reference-data/Reference-data/report_v2/build_report.py\", line 336, in compare_one\n    raise FileNotFoundError(f\"未找到当日抓取文件：{info['path'].name}\")\nFileNotFoundError: 未找到当日抓取文件：usprefstd.xls\n"
+      "error": ""
     }
   },
-  "files": [],
+  "files": [
+    {
+      "key": "chp",
+      "label": "国家药品标准物质目录 (ChP)",
+      "filename": "chp_20261120.xlsx",
+      "size_bytes": 318024
+    },
+    {
+      "key": "edqm",
+      "label": "EDQM 欧洲药典",
+      "filename": "edqm_20261120.xlsx",
+      "size_bytes": 203698
+    },
+    {
+      "key": "usp",
+      "label": "USP 美国药典",
+      "filename": "usp_20261120.xls",
+      "size_bytes": 15475246
+    }
+  ],
   "catalog": {
     "chp": {
-      "ok": false,
-      "total": 0,
-      "error": "FileNotFoundError: 未找到官方目录文件：国家药品标准物质目录_全量在售.xlsx"
+      "label": "国家药品标准物质目录 (ChP)",
+      "short": "ChP",
+      "total": 5951,
+      "columns": 8,
+      "ok": true
     },
     "edqm": {
-      "ok": false,
-      "total": 0,
-      "error": "FileNotFoundError: 未找到官方目录文件：EDQM_Catalog_Output.xlsx"
+      "label": "EDQM 欧洲药典",
+      "short": "EP",
+      "total": 3289,
+      "columns": 12,
+      "ok": true
     },
     "usp": {
-      "ok": false,
-      "total": 0,
-      "error": "FileNotFoundError: 未找到官方目录文件：usprefstd.xls"
+      "label": "USP 美国药典",
+      "short": "USP",
+      "total": 6420,
+      "columns": 25,
+      "ok": true
     }
   },
   "log_errors": []
