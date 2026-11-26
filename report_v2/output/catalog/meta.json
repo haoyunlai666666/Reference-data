@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-11-26T07:51:51.800691+08:00",
-  "date": "20261126",
+  "generated_at": "2026-11-27T07:44:07.703639+08:00",
+  "date": "20261127",
   "sources": {
     "chp": {
       "label": "国家药品标准物质目录 (ChP)",
       "short": "ChP",
-      "total": 5954,
+      "total": 5953,
       "columns": 8,
       "ok": true
     },
